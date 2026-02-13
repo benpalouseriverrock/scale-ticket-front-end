@@ -19,8 +19,10 @@ export class TicketEntryComponent implements OnInit {
     customer_id: 0,
     product_id: 0,
     truck_id: 0,
-    trailer_id: undefined,  // ← FIXED: Use undefined instead of null
-    gross_weight: 0,
+    trailer_id: undefined,
+    truck_weight: 0,        // ✅ FIXED: User enters truck weight
+    pup_weight: 0,          // ✅ FIXED: User enters pup/trailer weight
+    gross_weight: 0,        // ✅ FIXED: AUTO-CALCULATED (truck + pup)
     delivery_method: 'location',
     delivery_input_value: '',
     job_name: '',
@@ -62,10 +64,9 @@ export class TicketEntryComponent implements OnInit {
   };
 
   // UI State
-  successMessage = '';
-  errorMessage = '';
   loading = false;
-  createdTicketNumber: string = '';
+  errorMessage = '';
+  successMessage = '';
 
   constructor(
     private ticketService: TicketService,
@@ -76,44 +77,77 @@ export class TicketEntryComponent implements OnInit {
     private deliveryRateService: DeliveryRateService
   ) {}
 
-  ngOnInit() {
-    this.loadData();
+  ngOnInit(): void {
+    this.loadCustomers();
+    this.loadProducts();
+    this.loadTrucks();
+    this.loadTrailers();
+    this.loadDeliveryRates();
   }
 
-  loadData() {
-    this.customerService.getAll().subscribe(data => this.customers = data);
-    this.productService.getAll().subscribe(data => this.products = data);
-    this.truckService.getAll().subscribe(data => this.trucks = data);
-    this.trailerService.getAll().subscribe(data => this.trailers = data);
-    this.deliveryRateService.getAll().subscribe(data => this.deliveryRates = data);
+  // ============================================================================
+  // DATA LOADING
+  // ============================================================================
+
+  loadCustomers() {
+    this.customerService.getAll().subscribe({
+      next: (data) => { this.customers = data; },
+      error: (err) => { this.errorMessage = 'Failed to load customers'; }
+    });
   }
 
-  // Customer Selection - Auto-populate info
+  loadProducts() {
+    this.productService.getAll().subscribe({
+      next: (data) => { this.products = data; },
+      error: (err) => { this.errorMessage = 'Failed to load products'; }
+    });
+  }
+
+  loadTrucks() {
+    this.truckService.getAll().subscribe({
+      next: (data) => { this.trucks = data; },
+      error: (err) => { this.errorMessage = 'Failed to load trucks'; }
+    });
+  }
+
+  loadTrailers() {
+    this.trailerService.getAll().subscribe({
+      next: (data) => { this.trailers = data; },
+      error: (err) => { this.errorMessage = 'Failed to load trailers'; }
+    });
+  }
+
+  loadDeliveryRates() {
+    this.deliveryRateService.getAll().subscribe({
+      next: (data) => { this.deliveryRates = data; },
+      error: (err) => { this.errorMessage = 'Failed to load delivery rates'; }
+    });
+  }
+
+  // ============================================================================
+  // SELECTION CHANGE HANDLERS
+  // ============================================================================
+
   onCustomerChange() {
-    // Convert to number to handle string values from dropdown
     const customerId = Number(this.ticket.customer_id);
     const customer = this.customers.find(c => c.customer_id === customerId);
     this.selectedCustomer = customer || null;
     
     if (customer) {
-      // Set tax rate based on state
       this.calculatedValues.taxRate = this.getTaxRateForState(customer.customer_state);
-      this.calculateAll();
     }
+    
+    this.calculateAll();
   }
 
-  // Product Selection - Auto-populate pricing
   onProductChange() {
-    // Convert to number to handle string values from dropdown
     const productId = Number(this.ticket.product_id);
     const product = this.products.find(p => p.product_id === productId);
     this.selectedProduct = product || null;
     this.calculateAll();
   }
 
-  // Truck Selection
   onTruckChange() {
-    // Convert to number to handle string values from dropdown
     const truckId = Number(this.ticket.truck_id);
     const truck = this.trucks.find(t => t.truck_id === truckId);
     this.selectedTruck = truck || null;
@@ -121,9 +155,7 @@ export class TicketEntryComponent implements OnInit {
     this.calculateAll();
   }
 
-  // Trailer Selection
   onTrailerChange() {
-    // Convert to number to handle string values from dropdown
     const trailerId = this.ticket.trailer_id ? Number(this.ticket.trailer_id) : null;
     const trailer = trailerId ? this.trailers.find(t => t.trailer_id === trailerId) : null;
     this.selectedTrailer = trailer || null;
@@ -131,7 +163,35 @@ export class TicketEntryComponent implements OnInit {
     this.calculateAll();
   }
 
-  // Update Delivery Unit Description
+  // ============================================================================
+  // ✅ WEIGHT CALCULATIONS - FIXED TO MATCH CLIENT REQUIREMENTS
+  // ============================================================================
+
+  onTruckWeightChange() {
+    // When user enters truck weight, recalculate gross and everything else
+    this.calculateGrossWeight();
+    this.calculateAll();
+  }
+
+  onPupWeightChange() {
+    // When user enters pup weight, recalculate gross and everything else
+    this.calculateGrossWeight();
+    this.calculateAll();
+  }
+
+  calculateGrossWeight() {
+    // ✅ STEP 1: Calculate GROSS WEIGHT = Truck Weight + Pup Weight
+    const truckWeight = Number(this.ticket.truck_weight) || 0;
+    const pupWeight = Number(this.ticket.pup_weight) || 0;
+    this.ticket.gross_weight = truckWeight + pupWeight;
+
+    console.log('Gross Weight Calculation:', {
+      truckWeight,
+      pupWeight,
+      grossWeight: this.ticket.gross_weight
+    });
+  }
+
   updateDeliveryUnit() {
     if (this.selectedTruck) {
       this.calculatedValues.deliveryUnit = this.selectedTruck.unit_number;
@@ -142,15 +202,10 @@ export class TicketEntryComponent implements OnInit {
     }
   }
 
-  // Get Tax Rate Based on State
-  getTaxRateForState(state?: string): number {
-    if (!state) return 8.5;
-    if (state === 'ID') return 6.0;
-    if (state === 'WA') return 7.9;
-    return 8.5; // Default
-  }
+  // ============================================================================
+  // CALCULATIONS
+  // ============================================================================
 
-  // Calculate All Values
   calculateAll() {
     // Early return if required fields are missing
     if (!this.selectedProduct || !this.selectedTruck) {
@@ -161,22 +216,24 @@ export class TicketEntryComponent implements OnInit {
       return;
     }
 
-    // 1. Calculate Tare
+    // ✅ STEP 1: Calculate Tare (truck tare + trailer tare)
     const truckTare = Number(this.selectedTruck.tare_weight) || 0;
     const trailerTare = Number(this.selectedTrailer?.tare_weight) || 0;
     this.calculatedValues.tare = truckTare + trailerTare;
 
-    // 2. Calculate Net Weight
+    // ✅ STEP 2: Calculate Net Weight = Gross Weight - Tare Weight
     const grossWeight = Number(this.ticket.gross_weight) || 0;
     this.calculatedValues.netWeight = grossWeight - this.calculatedValues.tare;
     this.calculatedValues.netTons = this.calculatedValues.netWeight / 2000;
 
     // Debug logging
     console.log('Weight Calculations:', {
+      truckWeight: this.ticket.truck_weight,
+      pupWeight: this.ticket.pup_weight,
+      grossWeight: this.ticket.gross_weight,
       truckTare,
       trailerTare,
       totalTare: this.calculatedValues.tare,
-      grossWeight,
       netWeight: this.calculatedValues.netWeight,
       netTons: this.calculatedValues.netTons
     });
@@ -185,7 +242,7 @@ export class TicketEntryComponent implements OnInit {
     const pricePerTon = Number(this.selectedProduct.price_per_ton) || 0;
     this.calculatedValues.materialCost = this.calculatedValues.netTons * pricePerTon;
 
-    // 4. Estimate Delivery Charge (simplified - actual calculation on backend)
+    // 4. Estimate Delivery Charge
     this.calculatedValues.deliveryCharge = this.estimateDeliveryCharge();
 
     // 5. Calculate Subtotal
@@ -201,7 +258,6 @@ export class TicketEntryComponent implements OnInit {
     console.log('Final Calculations:', this.calculatedValues);
   }
 
-  // Estimate Delivery Charge (simplified version - backend does exact calculation)
   estimateDeliveryCharge(): number {
     if (!this.ticket.delivery_method || !this.ticket.delivery_input_value) {
       return 0;
@@ -213,7 +269,6 @@ export class TicketEntryComponent implements OnInit {
       availableRates: this.deliveryRates
     });
 
-    // Find matching rate
     const rate = this.deliveryRates.find(r => 
       r.method === this.ticket.delivery_method && 
       r.input_value === this.ticket.delivery_input_value &&
@@ -221,110 +276,92 @@ export class TicketEntryComponent implements OnInit {
     );
 
     console.log('Found rate:', rate);
-
     if (!rate) {
       console.log('No matching rate found');
       return 0;
     }
 
     if (this.ticket.delivery_method === 'location') {
-      const charge = rate.flat_rate || 0;
-      console.log('Location-based charge:', charge);
-      return charge;
+      return Number(rate.flat_rate) || 0;
     } else if (this.ticket.delivery_method === 'mileage') {
-      const miles = parseFloat(this.ticket.delivery_input_value || '0');
-      const charge = (rate.rate_per_mile || 0) * miles;
-      console.log('Mileage-based charge:', { miles, ratePerMile: rate.rate_per_mile, total: charge });
-      return charge;
+      const miles = Number(this.ticket.delivery_input_value) || 0;
+      return (Number(rate.rate_per_mile) || 0) * miles;
     }
 
     return 0;
   }
 
-  // Trigger recalculation when gross weight changes
-  onGrossWeightChange() {
-    this.calculateAll();
+  getTaxRateForState(state?: string): number {
+    if (!state) return 8.5;
+    if (state === 'ID') return 6.0;
+    if (state === 'WA') return 7.9;
+    return 8.5; // Default
   }
 
-  // Trigger recalculation when delivery changes
-  onDeliveryChange() {
-    this.calculateAll();
-  }
+  // ============================================================================
+  // FORM SUBMISSION
+  // ============================================================================
 
-  // Validate Form
-  validateForm(): boolean {
-    if (!this.ticket.customer_id || !this.ticket.product_id || !this.ticket.truck_id || !this.ticket.gross_weight) {
-      this.errorMessage = 'Please fill in all required fields: Customer, Product, Truck, and Gross Weight';
-      return false;
-    }
-    debugger;
-    if (this.ticket.gross_weight <= this.calculatedValues.tare) {
-      this.errorMessage = 'Gross weight must be greater than tare weight';
-      return false;
-    }
-
-    return true;
-  }
-
-  // Preview Ticket
-  previewTicket() {
-    if (!this.validateForm()) {
-      return;
-    }
-
-    this.calculateAll();
-    this.successMessage = 'Preview generated - review calculations above';
-    setTimeout(() => this.successMessage = '', 3000);
-  }
-
-  // Submit Ticket
-  submitTicket() {
-    this.errorMessage = '';
-    this.successMessage = '';
-
+  onSubmit() {
     if (!this.validateForm()) {
       return;
     }
 
     this.loading = true;
+    this.errorMessage = '';
+    this.successMessage = '';
 
-    // Prepare ticket data
-    const ticketData = { ...this.ticket };
+    // Prepare ticket data for submission
+    const ticketData = {
+      ...this.ticket,
+      delivery_unit: this.calculatedValues.deliveryUnit
+    };
 
     this.ticketService.create(ticketData).subscribe({
       next: (response) => {
-        this.successMessage = `Ticket #${response.ticket_number} created successfully!`;
-        this.createdTicketNumber = response.ticket_number || '';
         this.loading = false;
-        
-        // Optionally reset form
-        setTimeout(() => {
-          if (confirm('Ticket created! Do you want to create another ticket?')) {
-            this.resetForm();
-          }
-        }, 1500);
+        this.successMessage = `Ticket #${response.ticket_number} created successfully!`;
+        this.resetForm();
       },
       error: (error) => {
-        this.errorMessage = 'Error creating ticket: ' + (error.error?.error || error.message);
         this.loading = false;
-        console.error('Ticket creation error:', error);
+        this.errorMessage = error.error?.error || 'Failed to create ticket';
       }
     });
   }
 
-  // Print Ticket
-  printTicket(ticketNumber: string) {
-    // Navigate to print view or open in new window
-    window.open(`/tickets/${ticketNumber}/print`, '_blank');
+  validateForm(): boolean {
+    if (!this.ticket.customer_id) {
+      this.errorMessage = 'Please select a customer';
+      return false;
+    }
+    if (!this.ticket.product_id) {
+      this.errorMessage = 'Please select a product';
+      return false;
+    }
+    if (!this.ticket.truck_id) {
+      this.errorMessage = 'Please select a truck';
+      return false;
+    }
+    if (!this.ticket.truck_weight || this.ticket.truck_weight <= 0) {
+      this.errorMessage = 'Please enter truck weight';
+      return false;
+    }
+    if (!this.ticket.gross_weight || this.ticket.gross_weight <= 0) {
+      this.errorMessage = 'Gross weight must be greater than 0';
+      return false;
+    }
+    return true;
   }
 
-  // Reset Form
   resetForm() {
     this.ticket = {
       customer_id: 0,
       product_id: 0,
       truck_id: 0,
-      trailer_id: undefined,  // ← FIXED: Use undefined instead of null
+      trailer_id: undefined,
+      truck_weight: 0,
+      pup_weight: 0,
       gross_weight: 0,
       delivery_method: 'location',
       delivery_input_value: '',
@@ -356,9 +393,5 @@ export class TicketEntryComponent implements OnInit {
       taxAmount: 0,
       total: 0
     };
-
-    this.successMessage = '';
-    this.errorMessage = '';
-    this.createdTicketNumber = '';
   }
 }

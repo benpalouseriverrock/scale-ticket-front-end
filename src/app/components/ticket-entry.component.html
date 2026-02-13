@@ -1,29 +1,30 @@
-<div class="container mt-4">
-  <div class="card">
-    <div class="card-header bg-primary text-white">
-      <h3 class="mb-0"><i class="fas fa-ticket-alt"></i> Create Scale Ticket</h3>
-    </div>
-    
-    <div class="card-body">
-      <!-- Success/Error Messages -->
-      <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show">
-        <strong>Success!</strong> {{ successMessage }}
-        <button *ngIf="createdTicketNumber" (click)="printTicket(createdTicketNumber)" 
-                class="btn btn-sm btn-success ms-3">
-          <i class="fas fa-print"></i> Print Ticket
-        </button>
-        <button type="button" class="btn-close" (click)="successMessage=''"></button>
+<div class="container-fluid mt-4">
+  <div class="row">
+    <div class="col-lg-10 offset-lg-1">
+      
+      <!-- HEADER -->
+      <div class="card mb-3 border-primary">
+        <div class="card-header bg-primary text-white">
+          <h3 class="mb-0"><i class="fas fa-truck-loading"></i> Create Scale Ticket</h3>
+        </div>
       </div>
 
-      <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show">
-        <strong>Error!</strong> {{ errorMessage }}
-        <button type="button" class="btn-close" (click)="errorMessage=''"></button>
+      <!-- ERROR/SUCCESS MESSAGES -->
+      <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-circle"></i> {{ errorMessage }}
+        <button type="button" class="btn-close" (click)="errorMessage = ''"></button>
       </div>
 
-      <form (ngSubmit)="submitTicket()" #ticketForm="ngForm">
+      <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle"></i> {{ successMessage }}
+        <button type="button" class="btn-close" (click)="successMessage = ''"></button>
+      </div>
+
+      <!-- FORM -->
+      <form #ticketForm="ngForm" (ngSubmit)="onSubmit()">
         
-        <!-- CUSTOMER SECTION -->
-        <div class="card mb-3 border-secondary">
+        <!-- CUSTOMER INFORMATION -->
+        <div class="card mb-3">
           <div class="card-header bg-light">
             <h5 class="mb-0"><i class="fas fa-user"></i> Customer Information</h5>
           </div>
@@ -31,35 +32,28 @@
             <div class="row mb-3">
               <div class="col-md-6">
                 <label class="form-label fw-bold">Customer *</label>
-                <select [(ngModel)]="ticket.customer_id" (change)="onCustomerChange()" 
-                        name="customer" class="form-select" required>
-                  <option [value]="0">-- Select Customer --</option>
-                  <option *ngFor="let c of customers" [value]="c.customer_id">
-                    {{ c.name }}
+                <select [(ngModel)]="ticket.customer_id" (ngModelChange)="onCustomerChange()" 
+                        name="customer_id" class="form-select" required>
+                  <option [ngValue]="0">Select Customer...</option>
+                  <option *ngFor="let customer of customers" [ngValue]="customer.customer_id">
+                    {{ customer.name }}
                   </option>
                 </select>
               </div>
               <div class="col-md-6">
-                <label class="form-label fw-bold">Job Name / PO</label>
+                <label class="form-label fw-bold">Job Name / PO#</label>
                 <input [(ngModel)]="ticket.job_name" name="job_name" type="text" 
                        class="form-control" placeholder="Enter job name or PO number" />
               </div>
             </div>
 
-            <!-- Customer Address Display (Auto-populated) -->
-            <div *ngIf="selectedCustomer" class="row mb-3">
-              <div class="col-md-12">
-                <div class="alert alert-info mb-0">
-                  <strong>Customer Address:</strong><br>
-                  {{ selectedCustomer.address_primary }}<br>
-                  <span *ngIf="selectedCustomer.customer_city">
-                    {{ selectedCustomer.customer_city }}, {{ selectedCustomer.customer_state }} {{ selectedCustomer.customer_zipcode }}
-                  </span>
-                  <span *ngIf="selectedCustomer.customer_state" class="ms-3 badge bg-primary">
-                    Tax: {{ getTaxRateForState(selectedCustomer.customer_state) }}%
-                  </span>
-                </div>
-              </div>
+            <!-- Customer Address Display -->
+            <div *ngIf="selectedCustomer" class="alert alert-info">
+              <strong>{{ selectedCustomer.name }}</strong><br>
+              <span *ngIf="selectedCustomer.customer_address">{{ selectedCustomer.customer_address }}<br></span>
+              <span *ngIf="selectedCustomer.customer_city">{{ selectedCustomer.customer_city }}, </span>
+              <span *ngIf="selectedCustomer.customer_state">{{ selectedCustomer.customer_state }} </span>
+              <span *ngIf="selectedCustomer.customer_zipcode">{{ selectedCustomer.customer_zipcode }}</span>
             </div>
 
             <div class="row mb-3">
@@ -68,96 +62,107 @@
                 <input [(ngModel)]="ticket.delivered_by" name="delivered_by" type="text" 
                        class="form-control" placeholder="Driver name" />
               </div>
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Delivery Location</label>
-                <input [(ngModel)]="ticket.delivery_location" name="delivery_location" 
-                       type="text" class="form-control" placeholder="Delivery address" />
-              </div>
             </div>
           </div>
         </div>
 
-        <!-- PRODUCT SECTION -->
-        <div class="card mb-3 border-secondary">
+        <!-- PRODUCT DETAILS -->
+        <div class="card mb-3">
           <div class="card-header bg-light">
-            <h5 class="mb-0"><i class="fas fa-box"></i> Product & Material</h5>
+            <h5 class="mb-0"><i class="fas fa-boxes"></i> Product Details</h5>
           </div>
           <div class="card-body">
             <div class="row mb-3">
               <div class="col-md-6">
                 <label class="form-label fw-bold">Product *</label>
-                <select [(ngModel)]="ticket.product_id" (change)="onProductChange()" 
-                        name="product" class="form-select" required>
-                  <option [value]="0">-- Select Product --</option>
-                  <option *ngFor="let p of products" [value]="p.product_id">
-                    {{ p.product_name }} - ${{ p.price_per_ton | number:'1.2-2' }}/ton
+                <select [(ngModel)]="ticket.product_id" (ngModelChange)="onProductChange()" 
+                        name="product_id" class="form-select" required>
+                  <option [ngValue]="0">Select Product...</option>
+                  <option *ngFor="let product of products" [ngValue]="product.product_id">
+                    {{ product.product_name }} - ${{ product.price_per_ton }}/ton
                   </option>
                 </select>
               </div>
-              <div *ngIf="selectedProduct" class="col-md-6">
+              <div class="col-md-6" *ngIf="selectedProduct">
                 <label class="form-label fw-bold">Price per Ton</label>
                 <div class="input-group">
                   <span class="input-group-text">$</span>
-                  <input [value]="selectedProduct.price_per_ton | number:'1.2-2'" 
-                         type="text" class="form-control" readonly />
-                  <span class="input-group-text">/ton</span>
+                  <input [value]="selectedProduct.price_per_ton" type="text" 
+                         class="form-control bg-light" readonly />
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- TRUCK/TRAILER SECTION -->
-        <div class="card mb-3 border-secondary">
+        <!-- TRUCK & TRAILER -->
+        <div class="card mb-3">
           <div class="card-header bg-light">
-            <h5 class="mb-0"><i class="fas fa-truck"></i> Delivery Unit</h5>
+            <h5 class="mb-0"><i class="fas fa-truck"></i> Truck & Trailer</h5>
           </div>
           <div class="card-body">
             <div class="row mb-3">
               <div class="col-md-6">
                 <label class="form-label fw-bold">Truck *</label>
-                <select [(ngModel)]="ticket.truck_id" (change)="onTruckChange()" 
-                        name="truck" class="form-select" required>
-                  <option [value]="0">-- Select Truck --</option>
-                  <option *ngFor="let t of trucks" [value]="t.truck_id">
-                    {{ t.unit_number }} - Tare: {{ t.tare_weight | number }} lbs
+                <select [(ngModel)]="ticket.truck_id" (ngModelChange)="onTruckChange()" 
+                        name="truck_id" class="form-select" required>
+                  <option [ngValue]="0">Select Truck...</option>
+                  <option *ngFor="let truck of trucks" [ngValue]="truck.truck_id">
+                    {{ truck.unit_number }} - Tare: {{ truck.tare_weight.toLocaleString() }} lbs
                   </option>
                 </select>
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-bold">Trailer (Optional)</label>
-                <select [(ngModel)]="ticket.trailer_id" (change)="onTrailerChange()" 
-                        name="trailer" class="form-select">
-                  <option [value]="undefined">-- No Trailer --</option>
-                  <option *ngFor="let tr of trailers" [value]="tr.trailer_id">
-                    {{ tr.unit_number }} - Tare: {{ tr.tare_weight | number }} lbs
+                <select [(ngModel)]="ticket.trailer_id" (ngModelChange)="onTrailerChange()" 
+                        name="trailer_id" class="form-select">
+                  <option [ngValue]="undefined">No Trailer</option>
+                  <option *ngFor="let trailer of trailers" [ngValue]="trailer.trailer_id">
+                    {{ trailer.unit_number }} - Tare: {{ trailer.tare_weight.toLocaleString() }} lbs
                   </option>
                 </select>
               </div>
             </div>
 
-            <div *ngIf="calculatedValues.deliveryUnit" class="row mb-3">
-              <div class="col-md-12">
-                <div class="alert alert-success mb-0">
-                  <strong>Delivery Unit:</strong> {{ calculatedValues.deliveryUnit }}
-                </div>
-              </div>
+            <!-- Delivery Unit Display -->
+            <div *ngIf="calculatedValues.deliveryUnit" class="alert alert-success">
+              <strong>Delivery Unit:</strong> {{ calculatedValues.deliveryUnit }}
             </div>
           </div>
         </div>
 
-        <!-- WEIGHTS SECTION -->
-        <div class="card mb-3 border-secondary">
-          <div class="card-header bg-light">
+        <!-- ✅ WEIGHT MEASUREMENTS - FIXED WITH TWO SEPARATE INPUT FIELDS -->
+        <div class="card mb-3 border-warning">
+          <div class="card-header bg-warning text-dark">
             <h5 class="mb-0"><i class="fas fa-weight"></i> Weight Measurements</h5>
           </div>
           <div class="card-body">
+            
+            <!-- ✅ ROW 1: TRUCK WEIGHT + PUP WEIGHT (User Inputs) -->
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Truck Weight (lbs) *</label>
+                <input [(ngModel)]="ticket.truck_weight" (ngModelChange)="onTruckWeightChange()" 
+                       name="truck_weight" type="number" class="form-control" 
+                       placeholder="Enter truck weight from scale" required />
+                <small class="text-muted">Weight of truck from scale</small>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Pup/Trailer Weight (lbs)</label>
+                <input [(ngModel)]="ticket.pup_weight" (ngModelChange)="onPupWeightChange()" 
+                       name="pup_weight" type="number" class="form-control" 
+                       placeholder="Enter pup weight (if applicable)" />
+                <small class="text-muted">Weight of pup/trailer from scale (0 if none)</small>
+              </div>
+            </div>
+
+            <!-- ✅ ROW 2: GROSS WEIGHT (Auto-Calculated) -->
             <div class="row mb-3">
               <div class="col-md-4">
-                <label class="form-label fw-bold">Gross Weight (lbs) *</label>
-                <input [(ngModel)]="ticket.gross_weight" (ngModelChange)="onGrossWeightChange()" 
-                       name="gross_weight" type="number" class="form-control" 
-                       placeholder="Enter gross weight" required />
+                <label class="form-label fw-bold">Gross Weight (lbs)</label>
+                <input [value]="ticket.gross_weight.toLocaleString('en-US')" type="text" 
+                       class="form-control bg-success text-white fw-bold" readonly />
+                <small class="text-muted">Auto-calculated: Truck + Pup</small>
               </div>
               <div class="col-md-4">
                 <label class="form-label fw-bold">Tare Weight (lbs)</label>
@@ -172,6 +177,7 @@
               </div>
             </div>
 
+            <!-- ROW 3: NET TONS -->
             <div class="row mb-3">
               <div class="col-md-4">
                 <label class="form-label fw-bold">Net Tons</label>
@@ -182,8 +188,8 @@
           </div>
         </div>
 
-        <!-- DELIVERY/FREIGHT SECTION -->
-        <div class="card mb-3 border-secondary">
+        <!-- DELIVERY / FREIGHT -->
+        <div class="card mb-3">
           <div class="card-header bg-light">
             <h5 class="mb-0"><i class="fas fa-shipping-fast"></i> Delivery / Freight</h5>
           </div>
@@ -191,21 +197,24 @@
             <div class="row mb-3">
               <div class="col-md-4">
                 <label class="form-label fw-bold">Delivery Method</label>
-                <select [(ngModel)]="ticket.delivery_method" (change)="onDeliveryChange()" 
+                <select [(ngModel)]="ticket.delivery_method" (ngModelChange)="calculateAll()" 
                         name="delivery_method" class="form-select">
-                  <option value="location">Location-Based</option>
-                  <option value="mileage">Mileage-Based</option>
+                  <option value="">None</option>
+                  <option value="location">By Location</option>
+                  <option value="mileage">By Mileage</option>
                 </select>
               </div>
-              <div class="col-md-4">
-                <label class="form-label fw-bold">
-                  {{ ticket.delivery_method === 'location' ? 'Location Name' : 'Miles (one-way)' }}
-                </label>
-                <input [(ngModel)]="ticket.delivery_input_value" (ngModelChange)="onDeliveryChange()" 
-                       name="delivery_input_value" 
-                       [type]="ticket.delivery_method === 'mileage' ? 'number' : 'text'" 
-                       class="form-control" 
-                       [placeholder]="ticket.delivery_method === 'location' ? 'e.g., Colfax' : 'e.g., 15.5'" />
+              <div class="col-md-4" *ngIf="ticket.delivery_method === 'location'">
+                <label class="form-label fw-bold">Delivery Location</label>
+                <input [(ngModel)]="ticket.delivery_input_value" (ngModelChange)="calculateAll()" 
+                       name="delivery_input_value" type="text" class="form-control" 
+                       placeholder="Enter location name" />
+              </div>
+              <div class="col-md-4" *ngIf="ticket.delivery_method === 'mileage'">
+                <label class="form-label fw-bold">Miles (One-Way)</label>
+                <input [(ngModel)]="ticket.delivery_input_value" (ngModelChange)="calculateAll()" 
+                       name="delivery_input_value" type="number" class="form-control" 
+                       placeholder="Enter miles" />
               </div>
               <div class="col-md-4">
                 <label class="form-label fw-bold">Est. Delivery Charge</label>
@@ -215,6 +224,14 @@
                          type="text" class="form-control bg-light" readonly />
                 </div>
                 <small class="text-muted">Estimated - exact calculation on backend</small>
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-12">
+                <label class="form-label fw-bold">Delivery Address</label>
+                <input [(ngModel)]="ticket.delivery_location" name="delivery_location" 
+                       type="text" class="form-control" placeholder="Enter delivery address" />
               </div>
             </div>
           </div>
@@ -231,31 +248,31 @@
                 <tr>
                   <td class="fw-bold">Material Cost:</td>
                   <td class="text-end">
-                    {{ calculatedValues.netTons | number:'1.2-2' }} tons × 
-                    ${{ selectedProduct?.price_per_ton | number:'1.2-2' }}/ton
+                    {{ calculatedValues.netTons.toFixed(2) }} tons × 
+                    ${{ selectedProduct?.price_per_ton || 0 }}/ton
                   </td>
                   <td class="text-end fw-bold">
-                    ${{ calculatedValues.materialCost | number:'1.2-2' }}
+                    ${{ calculatedValues.materialCost.toFixed(2) }}
                   </td>
                 </tr>
                 <tr>
                   <td class="fw-bold">Delivery Charge:</td>
                   <td class="text-end">{{ ticket.delivery_method || 'Not specified' }}</td>
                   <td class="text-end fw-bold">
-                    ${{ calculatedValues.deliveryCharge | number:'1.2-2' }}
+                    ${{ calculatedValues.deliveryCharge.toFixed(2) }}
                   </td>
                 </tr>
                 <tr class="table-light">
                   <td colspan="2" class="fw-bold">Subtotal:</td>
                   <td class="text-end fw-bold">
-                    ${{ calculatedValues.subtotal | number:'1.2-2' }}
+                    ${{ calculatedValues.subtotal.toFixed(2) }}
                   </td>
                 </tr>
                 <tr>
                   <td class="fw-bold">Tax:</td>
                   <td class="text-end">{{ calculatedValues.taxRate }}%</td>
                   <td class="text-end fw-bold">
-                    ${{ calculatedValues.taxAmount | number:'1.2-2' }}
+                    ${{ calculatedValues.taxAmount.toFixed(2) }}
                   </td>
                 </tr>
                 <tr>
@@ -266,13 +283,13 @@
                            class="form-control form-control-sm" placeholder="0.00" />
                   </td>
                   <td class="text-end fw-bold">
-                    ${{ ticket.cc_fee || 0 | number:'1.2-2' }}
+                    ${{ (ticket.cc_fee || 0).toFixed(2) }}
                   </td>
                 </tr>
                 <tr class="table-success">
                   <td colspan="2" class="fw-bold fs-5">GRAND TOTAL:</td>
                   <td class="text-end fw-bold fs-4">
-                    ${{ calculatedValues.total | number:'1.2-2' }}
+                    ${{ calculatedValues.total.toFixed(2) }}
                   </td>
                 </tr>
               </tbody>
@@ -280,62 +297,22 @@
           </div>
         </div>
 
-        <!-- WSDOT SECTION -->
-        <div class="card mb-3 border-secondary">
-          <div class="card-header bg-light">
-            <h5 class="mb-0">
-              <input [(ngModel)]="ticket.is_wsdot_ticket" name="is_wsdot_ticket" 
-                     type="checkbox" class="form-check-input me-2" />
-              <i class="fas fa-road"></i> WSDOT Ticket
-            </h5>
-          </div>
-          <div *ngIf="ticket.is_wsdot_ticket" class="card-body">
-            <div class="row mb-3">
-              <div class="col-md-4">
-                <label class="form-label">DOT Code</label>
-                <input [(ngModel)]="ticket.dot_code" name="dot_code" type="text" class="form-control" />
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">Job Number</label>
-                <input [(ngModel)]="ticket.job_number" name="job_number" type="text" class="form-control" />
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">Contract Number</label>
-                <input [(ngModel)]="ticket.contract_number" name="contract_number" 
-                       type="text" class="form-control" />
-              </div>
-            </div>
+        <!-- FORM ACTIONS -->
+        <div class="card mb-3">
+          <div class="card-body text-center">
+            <button type="submit" class="btn btn-primary btn-lg me-2" [disabled]="loading">
+              <i class="fas fa-save"></i> 
+              <span *ngIf="!loading">Create Ticket</span>
+              <span *ngIf="loading">Creating...</span>
+            </button>
+            <button type="button" class="btn btn-secondary btn-lg" (click)="resetForm()">
+              <i class="fas fa-redo"></i> Reset Form
+            </button>
           </div>
         </div>
 
-        <!-- COMMENTS -->
-        <div class="card mb-3 border-secondary">
-          <div class="card-header bg-light">
-            <h5 class="mb-0"><i class="fas fa-comment"></i> Comments / Notes</h5>
-          </div>
-          <div class="card-body">
-            <textarea [(ngModel)]="ticket.comments" name="comments" 
-                      class="form-control" rows="3" 
-                      placeholder="Enter any additional comments or notes"></textarea>
-          </div>
-        </div>
-
-        <!-- ACTION BUTTONS -->
-        <div class="row">
-          <div class="col-md-12 text-end">
-            <button type="button" (click)="previewTicket()" class="btn btn-secondary me-2">
-              <i class="fas fa-eye"></i> Preview
-            </button>
-            <button type="button" (click)="resetForm()" class="btn btn-outline-danger me-2">
-              <i class="fas fa-redo"></i> Reset
-            </button>
-            <button type="submit" class="btn btn-primary btn-lg" [disabled]="loading || !ticketForm.valid">
-              <i class="fas fa-save"></i>
-              {{ loading ? 'Creating...' : 'Create Ticket' }}
-            </button>
-          </div>
-        </div>
       </form>
+
     </div>
   </div>
 </div>
