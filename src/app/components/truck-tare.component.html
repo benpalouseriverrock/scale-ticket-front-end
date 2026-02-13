@@ -1,0 +1,29 @@
+<div class="truck-tare-wrapper">
+  <h2>Update Truck Tare Weight</h2>
+
+  <div *ngIf="message" class="alert alert-info">{{ message }}</div>
+
+  <div class="row">
+    <div class="col-lg-6 col-md-8">
+      <div class="mb-3">
+        <label>Select Truck</label>
+        <select [(ngModel)]="selectedTruckId" (change)="onTruckSelect()" class="form-select">
+          <option [ngValue]="null">Select Truck</option>
+          <option *ngFor="let t of trucks" [ngValue]="t.truck_id">{{ t.unit_number }}</option>
+        </select>
+      </div>
+
+      <div *ngIf="selectedTruck" class="info-box mb-3">
+        <p><strong>Current Tare Weight:</strong> {{ selectedTruck.tare_weight }} lbs</p>
+        <p><strong>Configuration:</strong> {{ selectedTruck.configuration }}</p>
+      </div>
+
+      <div class="mb-3">
+        <label>New Tare Weight (lbs)</label>
+        <input [(ngModel)]="newTareWeight" type="number" class="form-control" />
+      </div>
+
+      <button (click)="updateTare()" class="btn btn-primary">Update</button>
+    </div>
+  </div>
+</div>

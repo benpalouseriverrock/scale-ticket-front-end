@@ -1,0 +1,309 @@
+================================================================================
+                 FRONTEND TESTING GUIDE - STEP BY STEP
+================================================================================
+
+BEFORE YOU START:
+  ✅ Backend running on port 3000
+  ✅ Database loaded with schema
+  ✅ npm install completed
+
+================================================================================
+                            STEP 1: START FRONTEND
+================================================================================
+
+1. Open terminal in frontend folder
+2. Run: ng serve
+3. Wait for compilation
+4. Should see: 
+   "✔ Compiled successfully"
+   "Application bundle generation complete"
+
+5. Open browser: http://localhost:4200
+
+You should see the Scale Ticket System with navigation.
+
+================================================================================
+                      STEP 2: TEST TICKET LIST VIEW
+================================================================================
+
+1. Frontend should load on "Tickets" tab by default
+2. You should see table with columns:
+   - Ticket #
+   - Customer
+   - Product
+   - Gross Weight
+   - Net Weight
+   - Total
+   - Date
+   - Actions (Print, Delete)
+
+3. Click "Print" button on any ticket
+   - Should see alert: "Ticket marked as printed"
+   - Table should refresh
+
+4. If no tickets show:
+   - Check backend is running
+   - Check browser console for errors (F12)
+   - Verify apiUrl in src/environments/environment.ts
+
+================================================================================
+                    STEP 3: TEST CREATE TICKET FORM
+================================================================================
+
+1. Click "Create Ticket" tab in navigation
+2. Form should appear with:
+   - Customer dropdown (with 3 options)
+   - Product dropdown (with 9 options)
+   - Truck dropdown (with 8 options)
+   - Trailer dropdown (with 10 options)
+   - Gross Weight input
+   - Delivered By input
+   - Job Name input
+   - Delivery Method dropdown (location/mileage)
+   - Delivery Input field
+   - WSDOT Ticket checkbox
+
+3. Fill in the form:
+   Customer: "Palouse River Rock"
+   Product: "5/8\"" ($5.50/ton)
+   Truck: "4" (Tare: 30240 lbs)
+   Trailer: "4P" (Tare: 8000 lbs)
+   Gross Weight: 70000
+   Delivered By: "Bob"
+   Job Name: "Test Job"
+   Delivery Method: "location"
+   Delivery Input: "Colfax"
+
+4. Click "Create Ticket" button
+5. Should see: "Ticket created: 000001"
+6. Form should clear
+
+✅ SUCCESS if:
+   - Green success message appears
+   - Form resets
+   - New ticket appears in Tickets list
+
+================================================================================
+                      STEP 4: TEST AUTO-CALCULATIONS
+================================================================================
+
+When you created the ticket in STEP 3, backend auto-calculated:
+
+Create a ticket and check the response:
+
+1. Go to Tickets tab
+2. Find the ticket you just created
+3. Click "Print" button to see full details in browser console (F12)
+
+Expected calculations:
+  Input:
+    - Gross Weight: 70000 lbs
+    - Truck Tare: 30240 lbs
+    - Trailer Tare: 8000 lbs
+    - Delivery Method: location (Colfax)
+    - Delivery Charge: $10.00
+    - Product Price: $5.50/ton
+    - Tax Rate: 7.9% (WA)
+
+  Auto-Calculated:
+    - Net Weight: 70000 - (30240 + 8000) = 31760 lbs
+    - Net Tons: 31760 / 2000 = 15.88 tons
+    - Material Cost: 15.88 × $5.50 = $87.34
+    - Subtotal: $87.34 + $10.00 = $97.34
+    - Tax Amount: $97.34 × 7.9% = $7.69
+    - Total: $97.34 + $7.69 = $105.03
+
+Open browser console (F12) → Network tab → Click Print button to see exact values
+
+================================================================================
+                    STEP 5: TEST UPDATE TARE FUNCTIONALITY
+================================================================================
+
+1. Click "Update Tare" tab in navigation
+2. Select Truck dropdown: Should show all 8 trucks
+3. Select "4" (4-Dump)
+4. Should show:
+   - Current Tare Weight: 30240 lbs
+   - Configuration: 4-Dump
+
+5. Change tare weight to: 31000
+6. Click "Update" button
+7. Should see: "Tare weight updated successfully"
+8. Dropdown should reset
+
+9. To verify update:
+   - Click "Create Ticket" tab
+   - Select Truck "4"
+   - Should now show "Tare: 31000 lbs"
+
+================================================================================
+                      STEP 6: TEST WITH WSDOT TICKET
+================================================================================
+
+1. Click "Create Ticket" tab
+2. Fill in basic info as in STEP 3:
+   Customer: "WSDOT Contractor"
+   Product: "3/4\""
+   Truck: "6"
+   Trailer: "6P"
+   Gross Weight: 65000
+
+3. Check "WSDOT Ticket" checkbox
+4. Should show additional fields:
+   - DOT Code
+   - Job Number
+
+5. Fill in WSDOT fields:
+   DOT Code: "XE3502 SR 104"
+   Job Number: "J001"
+
+6. Fill in delivery info:
+   Delivery Method: "mileage"
+   Delivery Input: "5-10"
+
+7. Click "Create Ticket"
+8. Should succeed with message showing ticket number
+
+================================================================================
+                      STEP 7: TEST ERROR HANDLING
+================================================================================
+
+1. Click "Create Ticket" tab
+2. Try to submit form without filling required fields
+3. Should see error: "Please fill in all required fields"
+
+4. Select Customer but don't fill anything else
+5. Try submit
+6. Should see same error
+
+✅ Form validates before submitting
+
+================================================================================
+                    STEP 8: TEST LOCATION VS MILEAGE
+================================================================================
+
+TEST 1 - Location-Based:
+  1. Create Ticket tab
+  2. Fill form (Customer, Product, Truck, Trailer, Gross Weight)
+  3. Delivery Method: "location"
+  4. Delivery Input: "Colfax"
+  5. Submit
+  6. Should calculate delivery charge: $10.00 (from delivery_rates table)
+
+TEST 2 - Mileage-Based:
+  1. Create Ticket tab
+  2. Fill form
+  3. Delivery Method: "mileage"
+  4. Delivery Input: "5-10"
+  5. Submit
+  6. Should calculate delivery charge based on rate_per_mile
+
+================================================================================
+                        STEP 9: TEST DELETE TICKET
+================================================================================
+
+1. Go to Tickets tab
+2. Find any ticket
+3. Click "Delete" button
+4. Should see confirmation dialog: "Are you sure?"
+5. Click OK
+6. Ticket should disappear from table
+
+================================================================================
+                    STEP 10: CHECK BROWSER CONSOLE
+================================================================================
+
+1. Open browser DevTools (F12)
+2. Go to Console tab
+3. You should NOT see any errors
+4. You should see network requests to:
+   - GET /api/customers
+   - GET /api/products
+   - GET /api/trucks
+   - GET /api/trailers
+   - POST /api/tickets
+   - DELETE /api/tickets/:id
+   etc.
+
+5. Go to Network tab
+6. Create a ticket
+3. Click on POST request to /api/tickets
+4. Response tab should show the created ticket with all auto-calculated fields
+
+================================================================================
+                      TESTING CHECKLIST
+================================================================================
+
+✅ Frontend starts without errors
+✅ Navigation tabs work
+✅ Ticket list displays
+✅ Dropdowns populate with data
+✅ Form validation works
+✅ Create ticket succeeds
+✅ Ticket appears in list
+✅ Print ticket works
+✅ Delete ticket works
+✅ Tare update works
+✅ WSDOT ticket toggle shows/hides fields
+✅ Location-based delivery works
+✅ Mileage-based delivery works
+✅ Auto-calculations are correct
+✅ No console errors
+✅ API calls show in Network tab
+✅ Backend responds with calculated values
+
+================================================================================
+                      TROUBLESHOOTING
+================================================================================
+
+ERROR: "Cannot connect to backend"
+FIX:
+  1. Check backend is running: npm run dev (in backend folder)
+  2. Verify apiUrl in src/environments/environment.ts
+  3. Check backend is on port 3000
+  4. Check firewall allows localhost:3000
+
+ERROR: "Module not found" or "import errors"
+FIX:
+  1. Run: npm install
+  2. Delete node_modules folder
+  3. Run: npm install again
+
+ERROR: "Dropdown options don't appear"
+FIX:
+  1. Check backend API is responding
+  2. Open browser console (F12) → Network tab
+  3. Look for GET /api/customers, /api/products, etc.
+  4. If 404 errors, check backend routes are implemented
+
+ERROR: "Can't create ticket"
+FIX:
+  1. Check all required fields are filled
+  2. Open console and look for error message
+  3. Check Network tab for POST /api/tickets response
+  4. If 500 error, check backend logs
+
+ERROR: "Calculations don't match expected values"
+FIX:
+  1. Check backend ticketController.js calculation logic
+  2. Check all referenced tables have correct data
+  3. Check tax_rate for customer's state
+  4. Check delivery_rates table has correct rates
+
+================================================================================
+                          SUCCESS INDICATORS
+================================================================================
+
+✅ Frontend loads without errors
+✅ All dropdowns populate with correct data
+✅ Can create tickets
+✅ Created tickets appear in list immediately
+✅ Calculations are accurate
+✅ Can update tare weights
+✅ Can print/delete tickets
+✅ Browser console shows no errors
+✅ API calls complete successfully
+
+If all above pass, your system is working correctly!
+
+================================================================================

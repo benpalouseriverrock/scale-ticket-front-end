@@ -1,0 +1,37 @@
+<div class="ticket-list-wrapper">
+  <h2>Scale Tickets</h2>
+
+  <div *ngIf="loading" class="alert alert-info">Loading...</div>
+
+  <div class="table-responsive" *ngIf="!loading">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Ticket #</th>
+          <th>Customer</th>
+          <th>Product</th>
+          <th>Gross Weight</th>
+          <th>Net Weight</th>
+          <th>Total</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let ticket of tickets">
+          <td>{{ ticket.ticket_number }}</td>
+          <td>{{ ticket.customer_name }}</td>
+          <td>{{ ticket.product_name }}</td>
+          <td>{{ ticket.gross_weight }}</td>
+          <td>{{ ticket.net_tons }}</td>
+          <td>${{ ticket.total }}</td>
+          <td>{{ ticket.date_time | date }}</td>
+          <td class="actions-cell">
+            <button (click)="printTicket(ticket.ticket_id)" class="btn btn-sm btn-primary">Print</button>
+            <button (click)="deleteTicket(ticket.ticket_id)" class="btn btn-sm btn-danger">Delete</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
