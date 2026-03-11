@@ -1,0 +1,452 @@
+<div class="container-fluid mt-4">
+  <div class="row">
+    <div class="col-lg-10 offset-lg-1">
+      
+      <!-- HEADER -->
+      <div class="card mb-3 border-primary">
+        <div class="card-header text-white" [class.bg-primary]="!editMode" [class.bg-warning]="editMode" [class.text-dark]="editMode">
+          <h3 class="mb-0">
+            <i class="fas fa-truck-loading"></i>
+            {{ editMode ? 'Edit Scale Ticket #' + editTicket?.ticket_number : 'Create Scale Ticket' }}
+          </h3>
+        </div>
+      </div>
+
+      <!-- ERROR/SUCCESS MESSAGES -->
+      <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-circle"></i> {{ errorMessage }}
+        <button type="button" class="btn-close" (click)="errorMessage = ''"></button>
+      </div>
+
+      <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle"></i> {{ successMessage }}
+        <button type="button" class="btn-close" (click)="successMessage = ''"></button>
+      </div>
+
+      <!-- FORM -->
+      <form #ticketForm="ngForm" (ngSubmit)="onSubmit()">
+        
+        <!-- CUSTOMER INFORMATION -->
+        <div class="card mb-3">
+          <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-user"></i> Customer Information</h5>
+          </div>
+          <div class="card-body">
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Customer *</label>
+                <select [(ngModel)]="ticket.customer_id" (ngModelChange)="onCustomerChange()" 
+                        name="customer_id" class="form-select" required>
+                  <option [ngValue]="0">Select Customer...</option>
+                  <option *ngFor="let customer of customers" [ngValue]="customer.customer_id">
+                    {{ customer.name }}
+                  </option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Job Name / PO#</label>
+                <input [(ngModel)]="ticket.job_name" name="job_name" type="text" 
+                       class="form-control" placeholder="Enter job name or PO number" />
+              </div>
+            </div>
+
+            <!-- Customer Address Display -->
+            <div *ngIf="selectedCustomer" class="alert alert-info">
+              <strong>{{ selectedCustomer.name }}</strong><br>
+              <span *ngIf="selectedCustomer.customer_address">{{ selectedCustomer.customer_address }}<br></span>
+              <span *ngIf="selectedCustomer.customer_city">{{ selectedCustomer.customer_city }}, </span>
+              <span *ngIf="selectedCustomer.customer_state">{{ selectedCustomer.customer_state }} </span>
+              <span *ngIf="selectedCustomer.customer_zipcode">{{ selectedCustomer.customer_zipcode }}</span>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Delivered By</label>
+                <input [(ngModel)]="ticket.delivered_by" name="delivered_by" type="text" 
+                       class="form-control" placeholder="Driver name" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PRODUCT DETAILS -->
+        <div class="card mb-3">
+          <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-boxes"></i> Product Details</h5>
+          </div>
+          <div class="card-body">
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Product *</label>
+                <select [(ngModel)]="ticket.product_id" (ngModelChange)="onProductChange()" 
+                        name="product_id" class="form-select" required>
+                  <option [ngValue]="0">Select Product...</option>
+                  <option *ngFor="let product of products" [ngValue]="product.product_id">
+                    {{ product.product_name }} - ${{ product.price_per_ton }}/ton
+                  </option>
+                </select>
+              </div>
+              <div class="col-md-6" *ngIf="selectedProduct">
+                <label class="form-label fw-bold">Price per Ton</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input [value]="selectedProduct.price_per_ton" type="text" 
+                         class="form-control bg-light" readonly />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TRUCK & TRAILER -->
+        <div class="card mb-3">
+          <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-truck"></i> Truck & Trailer</h5>
+          </div>
+          <div class="card-body">
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Truck *</label>
+                <select [(ngModel)]="ticket.truck_id" (ngModelChange)="onTruckChange()" 
+                        name="truck_id" class="form-select" required>
+                  <option [ngValue]="0">Select Truck...</option>
+                  <option *ngFor="let truck of trucks" [ngValue]="truck.truck_id">
+                    {{ truck.unit_number }} - Tare: {{ truck.tare_weight.toLocaleString() }} lbs
+                  </option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Trailer (Optional)</label>
+                <select [(ngModel)]="ticket.trailer_id" (ngModelChange)="onTrailerChange()" 
+                        name="trailer_id" class="form-select">
+                  <option [ngValue]="undefined">No Trailer</option>
+                  <option *ngFor="let trailer of trailers" [ngValue]="trailer.trailer_id">
+                    {{ trailer.unit_number }} - Tare: {{ trailer.tare_weight.toLocaleString() }} lbs
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Delivery Unit Display -->
+            <div *ngIf="calculatedValues.deliveryUnit" class="alert alert-success">
+              <strong>Delivery Unit:</strong> {{ calculatedValues.deliveryUnit }}
+            </div>
+          </div>
+        </div>
+
+        <!-- ✅ WEIGHT MEASUREMENTS - FIXED WITH TWO SEPARATE INPUT FIELDS -->
+        <div class="card mb-3 border-warning">
+          <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="fas fa-weight"></i> Weight Measurements</h5>
+          </div>
+          <div class="card-body">
+            
+            <!-- ✅ ROW 1: TRUCK WEIGHT + PUP WEIGHT (User Inputs) -->
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Truck Weight (lbs) *</label>
+                <input [(ngModel)]="ticket.truck_weight" (ngModelChange)="onTruckWeightChange()" 
+                       name="truck_weight" type="number" class="form-control" 
+                       placeholder="Enter truck weight from scale" required />
+                <small class="text-muted">Weight of truck from scale</small>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Pup/Trailer Weight (lbs)</label>
+                <input [(ngModel)]="ticket.pup_weight" (ngModelChange)="onPupWeightChange()" 
+                       name="pup_weight" type="number" class="form-control" 
+                       placeholder="Enter pup weight (if applicable)" />
+                <small class="text-muted">Weight of pup/trailer from scale (0 if none)</small>
+              </div>
+            </div>
+
+            <!-- ✅ ROW 2: GROSS WEIGHT (Auto-Calculated) -->
+            <div class="row mb-3">
+              <div class="col-md-4">
+                <label class="form-label fw-bold">Gross Weight (lbs)</label>
+                <input [value]="ticket.gross_weight.toLocaleString('en-US')" type="text" 
+                       class="form-control bg-success text-white fw-bold" readonly />
+                <small class="text-muted">Auto-calculated: Truck + Pup</small>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold d-flex align-items-center gap-2">
+                  Tare Weight (lbs)
+                  <span class="d-flex align-items-center gap-1 fw-normal fs-6">
+                    <input type="checkbox" class="form-check-input mt-0"
+                           [(ngModel)]="manualTareEnabled" name="manualTareEnabled"
+                           id="manualTareToggle" (ngModelChange)="onManualTareToggle()" />
+                    <label class="form-check-label text-secondary" for="manualTareToggle">Manual</label>
+                  </span>
+                </label>
+                <input *ngIf="!manualTareEnabled"
+                       [value]="calculatedValues.tare.toLocaleString('en-US')" type="text"
+                       class="form-control bg-light" readonly />
+                <input *ngIf="manualTareEnabled"
+                       [(ngModel)]="manualTareWeight" (ngModelChange)="calculateAll()"
+                       name="manualTareWeight" type="number" class="form-control border-warning"
+                       placeholder="Enter tare weight" />
+                <small *ngIf="!manualTareEnabled" class="text-muted">Auto-calculated from truck + trailer</small>
+                <small *ngIf="manualTareEnabled" class="text-warning fw-semibold">Manual override active</small>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold">Net Weight (lbs)</label>
+                <input [value]="calculatedValues.netWeight.toLocaleString('en-US')" type="text" 
+                       class="form-control bg-warning" readonly />
+              </div>
+            </div>
+
+            <!-- ROW 3: NET TONS -->
+            <div class="row mb-3">
+              <div class="col-md-4">
+                <label class="form-label fw-bold">Net Tons</label>
+                <input [value]="calculatedValues.netTons.toFixed(2)" type="text" 
+                       class="form-control bg-info text-white fw-bold" readonly />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DELIVERY / FREIGHT -->
+        <div class="card mb-3">
+          <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-shipping-fast"></i> Delivery / Freight</h5>
+          </div>
+          <div class="card-body">
+            <div class="row mb-3">
+              <div class="col-md-4">
+                <label class="form-label fw-bold">Delivery Method</label>
+                <select [(ngModel)]="ticket.delivery_method" (ngModelChange)="calculateAll()"
+                        name="delivery_method" class="form-select">
+                  <option value="">None</option>
+                  <option value="location">By Location (rate table)</option>
+                  <option value="mileage">By Mileage (rate table)</option>
+                  <option value="per_ton">Per Ton ($/ton)</option>
+                  <option value="per_load">Per Load (flat)</option>
+                </select>
+              </div>
+              <div class="col-md-4" *ngIf="ticket.delivery_method === 'location'">
+                <label class="form-label fw-bold">Delivery Location</label>
+                <input [(ngModel)]="ticket.delivery_input_value" (ngModelChange)="calculateAll()"
+                       name="delivery_input_value" type="text" class="form-control"
+                       placeholder="Enter location name" />
+              </div>
+              <div class="col-md-4" *ngIf="ticket.delivery_method === 'mileage'">
+                <label class="form-label fw-bold">Miles (One-Way)</label>
+                <input [(ngModel)]="ticket.delivery_input_value" (ngModelChange)="calculateAll()"
+                       name="delivery_input_value" type="number" class="form-control"
+                       placeholder="Enter miles" />
+              </div>
+              <div class="col-md-4" *ngIf="ticket.delivery_method === 'per_ton'">
+                <label class="form-label fw-bold">Rate ($/ton)</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input [(ngModel)]="ticket.delivery_input_value" (ngModelChange)="calculateAll()"
+                         name="delivery_input_value" type="number" step="0.01" class="form-control"
+                         placeholder="e.g. 6.50" />
+                  <span class="input-group-text">/ton</span>
+                </div>
+              </div>
+              <div class="col-md-4" *ngIf="ticket.delivery_method === 'per_load'">
+                <label class="form-label fw-bold">Flat Charge ($/load)</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input [(ngModel)]="ticket.delivery_input_value" (ngModelChange)="calculateAll()"
+                         name="delivery_input_value" type="number" step="0.01" class="form-control"
+                         placeholder="e.g. 75.00" />
+                </div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold">Est. Delivery Charge</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input [value]="calculatedValues.deliveryCharge.toFixed(2)" 
+                         type="text" class="form-control bg-light" readonly />
+                </div>
+                <small class="text-muted">Estimated - exact calculation on backend</small>
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-12">
+                <label class="form-label fw-bold">Delivery Address</label>
+                <input [(ngModel)]="ticket.delivery_location" name="delivery_location" 
+                       type="text" class="form-control" placeholder="Enter delivery address" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- WSDOT / HAULHUB -->
+        <div class="card mb-3 border-info">
+          <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-road"></i> WSDOT / HaulHub</h5>
+          </div>
+          <div class="card-body">
+            <div class="form-check form-switch mb-3">
+              <input [(ngModel)]="ticket.is_wsdot_ticket" name="is_wsdot_ticket"
+                     class="form-check-input" type="checkbox" id="isWsdotTicket" role="switch" />
+              <label class="form-check-label fw-bold" for="isWsdotTicket">
+                This is a WSDOT ticket &mdash; push to HaulHub on save
+              </label>
+            </div>
+
+            <div *ngIf="ticket.is_wsdot_ticket">
+
+              <!-- Project quick-fill -->
+              <div class="row mb-3" *ngIf="wsdotProjects.length > 0">
+                <div class="col-md-8">
+                  <label class="form-label fw-bold">Load from Saved Project</label>
+                  <div class="input-group">
+                    <select [(ngModel)]="selectedProjectId" name="selectedProjectId"
+                            class="form-select" (ngModelChange)="onProjectChange()">
+                      <option [ngValue]="null">— Select a project to pre-fill fields —</option>
+                      <option *ngFor="let p of wsdotProjects" [ngValue]="p.project_id">
+                        {{ p.project_name }}
+                      </option>
+                    </select>
+                  </div>
+                  <small class="text-muted">Choosing a project fills the fields below; you can still edit them.</small>
+                </div>
+              </div>
+              <div class="alert alert-light border mb-3" *ngIf="wsdotProjects.length === 0">
+                <small>No saved WSDOT projects yet. Fill the fields manually or add projects via the admin panel.</small>
+              </div>
+
+              <div class="row mb-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">DOT Code</label>
+                  <input [(ngModel)]="ticket.dot_code" name="dot_code" type="text"
+                         class="form-control" placeholder="e.g. 123456" />
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Contract Number</label>
+                  <input [(ngModel)]="ticket.contract_number" name="contract_number" type="text"
+                         class="form-control" placeholder="Contract #" />
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Job Number</label>
+                  <input [(ngModel)]="ticket.job_number" name="job_number" type="text"
+                         class="form-control" placeholder="Job #" />
+                </div>
+              </div>
+
+              <div class="row mb-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Mix ID</label>
+                  <input [(ngModel)]="ticket.mix_id" name="mix_id" type="text"
+                         class="form-control" placeholder="Mix ID" />
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Phase Code</label>
+                  <input [(ngModel)]="ticket.phase_code" name="phase_code" type="text"
+                         class="form-control" placeholder="Phase Code" />
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Phase Description</label>
+                  <input [(ngModel)]="ticket.phase_description" name="phase_description" type="text"
+                         class="form-control" placeholder="Phase Description" />
+                </div>
+              </div>
+
+              <div class="row mb-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Dispatch Number</label>
+                  <input [(ngModel)]="ticket.dispatch_number" name="dispatch_number" type="text"
+                         class="form-control" placeholder="Dispatch #" />
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Purchase Order Number</label>
+                  <input [(ngModel)]="ticket.purchase_order_number" name="purchase_order_number" type="text"
+                         class="form-control" placeholder="PO #" />
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Weighmaster</label>
+                  <input [(ngModel)]="ticket.weighmaster" name="weighmaster" type="text"
+                         class="form-control" placeholder="Weighmaster name" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- COST SUMMARY -->
+        <div class="card mb-3 border-success">
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-calculator"></i> Cost Summary</h5>
+          </div>
+          <div class="card-body">
+            <table class="table table-bordered table-hover">
+              <tbody>
+                <tr>
+                  <td class="fw-bold">Material Cost:</td>
+                  <td class="text-end">
+                    {{ calculatedValues.netTons.toFixed(2) }} tons × 
+                    ${{ selectedProduct?.price_per_ton || 0 }}/ton
+                  </td>
+                  <td class="text-end fw-bold">
+                    ${{ calculatedValues.materialCost.toFixed(2) }}
+                  </td>
+                </tr>
+                <tr>
+                  <td class="fw-bold">Delivery Charge:</td>
+                  <td class="text-end">{{ ticket.delivery_method || 'Not specified' }}</td>
+                  <td class="text-end fw-bold">
+                    ${{ calculatedValues.deliveryCharge.toFixed(2) }}
+                  </td>
+                </tr>
+                <tr class="table-light">
+                  <td colspan="2" class="fw-bold">Subtotal:</td>
+                  <td class="text-end fw-bold">
+                    ${{ calculatedValues.subtotal.toFixed(2) }}
+                  </td>
+                </tr>
+                <tr>
+                  <td class="fw-bold">Tax:</td>
+                  <td class="text-end">{{ calculatedValues.taxRate }}%</td>
+                  <td class="text-end fw-bold">
+                    ${{ calculatedValues.taxAmount.toFixed(2) }}
+                  </td>
+                </tr>
+                <tr>
+                  <td class="fw-bold">CC Fee:</td>
+                  <td class="text-end">
+                    <input [(ngModel)]="ticket.cc_fee" (ngModelChange)="calculateAll()" 
+                           name="cc_fee" type="number" step="0.01" 
+                           class="form-control form-control-sm" placeholder="0.00" />
+                  </td>
+                  <td class="text-end fw-bold">
+                    ${{ (+(ticket.cc_fee || 0)).toFixed(2) }}
+                  </td>
+                </tr>
+                <tr class="table-success">
+                  <td colspan="2" class="fw-bold fs-5">GRAND TOTAL:</td>
+                  <td class="text-end fw-bold fs-4">
+                    ${{ calculatedValues.total.toFixed(2) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- FORM ACTIONS -->
+        <div class="card mb-3">
+          <div class="card-body text-center">
+            <button type="submit" class="btn btn-lg me-2" [class.btn-primary]="!editMode" [class.btn-warning]="editMode" [disabled]="loading">
+              <i class="fas fa-save"></i>
+              <span *ngIf="!loading">{{ editMode ? 'Save Changes' : 'Create Ticket' }}</span>
+              <span *ngIf="loading">{{ editMode ? 'Saving...' : 'Creating...' }}</span>
+            </button>
+            <button *ngIf="!editMode" type="button" class="btn btn-secondary btn-lg" (click)="resetForm()">
+              <i class="fas fa-redo"></i> Reset Form
+            </button>
+            <button *ngIf="editMode" type="button" class="btn btn-outline-secondary btn-lg" (click)="cancelEdit()">
+              Cancel
+            </button>
+          </div>
+        </div>
+
+      </form>
+
+    </div>
+  </div>
+</div>

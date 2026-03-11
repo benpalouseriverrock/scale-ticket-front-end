@@ -1,0 +1,180 @@
+<div class="print-container">
+
+  <!-- Screen-only toolbar -->
+  <div class="no-print back-bar">
+    <button class="btn btn-secondary btn-sm" (click)="close()">&#8592; Back to Tickets</button>
+    <span class="badge ms-3 align-middle"
+          [class.bg-primary]="mode === 'invoice'"
+          [class.bg-secondary]="mode === 'ticket'"
+          style="font-size:0.85rem">
+      {{ mode === 'invoice' ? 'Invoice (weights + costs)' : 'Ticket (weights only)' }}
+    </span>
+    <button class="btn btn-primary btn-sm ms-2" onclick="window.print()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" style="margin-right:4px;vertical-align:-1px">
+        <path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1"/>
+        <path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zm4 10h-2V9h2zm2 0h-1V9H4v2H3v-1a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v1zm-3-9h4v2H4V2z"/>
+      </svg>
+      Print
+    </button>
+  </div>
+
+  <div *ngIf="loading" class="no-print text-center p-5 text-muted">Loading ticket&hellip;</div>
+  <div *ngIf="error" class="no-print alert alert-danger m-3">{{ error }}</div>
+
+  <!-- TICKET COPIES -->
+  <div *ngIf="ticket" class="tickets-page">
+    <ng-container *ngFor="let label of copyLabels; let last = last">
+
+      <!-- ======================== TICKET COPY ======================== -->
+      <div class="ticket-copy">
+
+        <!-- HEADER -->
+        <div class="ticket-header">
+          <div class="header-logo">
+            <img [src]="logoSrc" alt="Palouse River Rock LLC" />
+          </div>
+          <div class="header-company">
+            <div class="company-name">Palouse River Rock LLC.</div>
+            <div>120 S Main St</div>
+            <div>Colfax, WA&nbsp;&nbsp;99111</div>
+            <div>509.397.3556</div>
+          </div>
+          <div class="header-ticket-info">
+            <div class="ticket-num">{{ ticket.ticket_number }}</div>
+            <div class="ticket-date">{{ ticket.date_time | date:'M/d/yyyy' }}&nbsp;&nbsp;{{ ticket.date_time | date:'h:mm a' }}</div>
+          </div>
+        </div>
+
+        <!-- BLUE DIVIDER -->
+        <div class="header-divider"></div>
+
+        <!-- BODY: 3-column layout -->
+        <div class="ticket-body">
+
+          <!-- LEFT — Customer Info -->
+          <div class="body-left">
+            <div class="field-row">
+              <span class="field-label">Customer&nbsp;Name:</span>
+              <span class="field-value">{{ ticket.customer_name }}</span>
+            </div>
+            <div class="field-spacer"></div>
+            <div class="field-row">
+              <span class="field-label">Job&nbsp;Name:</span>
+              <span class="field-value">{{ ticket.job_name }}</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Date&nbsp;/&nbsp;Time:</span>
+              <span class="field-value">{{ ticket.date_time | date:'M/d/yyyy h:mm a' }}</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Delivered&nbsp;by:</span>
+              <span class="field-value">{{ ticket.delivered_by }}</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Delivery&nbsp;Unit:</span>
+              <span class="field-value">{{ ticket.delivery_unit }}</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Delivery:</span>
+              <span class="field-value">{{ ticket.delivery_location }}</span>
+            </div>
+          </div>
+
+          <!-- CENTER — Weights -->
+          <div class="body-center">
+            <div class="field-row">
+              <span class="field-label">Product:</span>
+              <span class="field-value product-value">{{ ticket.product_name }}</span>
+            </div>
+            <div class="field-spacer"></div>
+            <div class="weight-row">
+              <span class="weight-label">Gross:</span>
+              <span class="weight-value">{{ formatWeight(ticket.gross_weight) }}</span>
+              <span class="weight-unit">Lbs</span>
+            </div>
+            <div class="weight-row">
+              <span class="weight-label">Tare:</span>
+              <span class="weight-value">{{ formatWeight(ticket.tare_weight) }}</span>
+              <span class="weight-unit">Lbs</span>
+            </div>
+            <div class="weight-row">
+              <span class="weight-label">Net:</span>
+              <span class="weight-value">{{ formatWeight(ticket.net_weight) }}</span>
+              <span class="weight-unit">Lbs</span>
+            </div>
+            <div class="weight-row">
+              <span class="weight-label"></span>
+              <span class="weight-value net-tons">{{ ticket.net_tons }}</span>
+              <span class="weight-unit">Tons</span>
+            </div>
+          </div>
+
+          <!-- RIGHT — Pricing Summary (invoice mode only) -->
+          <div class="body-right" [class.body-right-empty]="mode === 'ticket'">
+            <ng-container *ngIf="mode === 'invoice'">
+            <table class="price-table">
+              <tr>
+                <td class="price-label">Material:</td>
+                <td class="price-rate">$/Ton</td>
+                <td class="price-amount">{{ formatMoney(getMaterialCost()) }}</td>
+              </tr>
+              <tr>
+                <td class="price-label">Delivery:</td>
+                <td class="price-rate">
+                  <span *ngIf="ticket.delivery_method === 'mileage'">$/Miles</span>
+                  <span *ngIf="ticket.delivery_method === 'location'">By Location</span>
+                  <span *ngIf="!ticket.delivery_method">—</span>
+                </td>
+                <td class="price-amount">{{ formatMoney(ticket.delivery_charge) }}</td>
+              </tr>
+              <tr class="price-subtotal">
+                <td colspan="2" class="price-label">Sub&nbsp;Total:</td>
+                <td class="price-amount">{{ formatMoney(ticket.subtotal) }}</td>
+              </tr>
+              <tr>
+                <td class="price-label">Tax:</td>
+                <td class="price-rate">WA&nbsp;{{ ticket.tax_rate }}%</td>
+                <td class="price-amount">{{ formatMoney(ticket.tax_amount) }}</td>
+              </tr>
+              <tr>
+                <td class="price-label">CC&nbsp;Fee:</td>
+                <td class="price-rate"></td>
+                <td class="price-amount">{{ formatMoney(ticket.cc_fee) }}</td>
+              </tr>
+              <tr class="price-total">
+                <td colspan="2" class="price-label">Total:</td>
+                <td class="price-amount price-total-amount">{{ formatMoney(ticket.total) }}</td>
+              </tr>
+            </table>
+
+            <!-- WSDOT info if applicable -->
+            <div *ngIf="ticket.is_wsdot_ticket" class="wsdot-block">
+              <div class="wsdot-title">WSDOT</div>
+              <div *ngIf="ticket.contract_number" class="wsdot-field">Contract #: {{ ticket.contract_number }}</div>
+              <div *ngIf="ticket.dot_code" class="wsdot-field">DOT Code: {{ ticket.dot_code }}</div>
+              <div *ngIf="ticket.job_number" class="wsdot-field">Job #: {{ ticket.job_number }}</div>
+              <div *ngIf="ticket.loads_today" class="wsdot-field">Loads Today: {{ ticket.loads_today }}</div>
+              <div *ngIf="ticket.quantity_shipped_today" class="wsdot-field">Tons Today: {{ ticket.quantity_shipped_today }}</div>
+            </div>
+            </ng-container>
+          </div>
+
+        </div><!-- /ticket-body -->
+
+        <!-- FOOTER -->
+        <div class="ticket-footer">
+          <span class="copy-label">{{ label }}</span>
+          <span *ngIf="ticket.weighmaster" class="weighmaster-label">Weighmaster: {{ ticket.weighmaster }}</span>
+        </div>
+
+      </div><!-- /ticket-copy -->
+
+      <!-- CUT LINE between copies -->
+      <div *ngIf="!last" class="cut-line">
+        <span>&#9988; &nbsp;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -&nbsp; &#9988;</span>
+      </div>
+
+    </ng-container>
+  </div><!-- /tickets-page -->
+
+</div><!-- /print-container -->

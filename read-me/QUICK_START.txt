@@ -1,0 +1,242 @@
+================================================================================
+                    SCALE TICKET FRONTEND - QUICK START
+================================================================================
+
+✅ Everything is ready to go!
+
+================================================================================
+                         5-MINUTE SETUP
+================================================================================
+
+STEP 1: Install Dependencies
+==============================
+cd scale-ticket-frontend
+npm install
+
+STEP 2: Configure Backend URL
+==============================
+Edit: src/environments/environment.ts
+
+Change:
+  apiUrl: 'http://localhost:3000/api'
+
+(Keep as-is if backend is running on localhost:3000)
+
+STEP 3: Start Frontend
+==============================
+ng serve
+
+STEP 4: Open Browser
+==============================
+Go to: http://localhost:4200
+
+STEP 5: Start Using!
+==============================
+- View Tickets
+- Create New Tickets
+- Update Truck Tare Weights
+- Print/Delete Tickets
+
+================================================================================
+                       WHAT YOU'LL SEE
+================================================================================
+
+Homepage:
+  - Navigation bar with 3 options:
+    • Tickets (View all)
+    • Create Ticket (New ticket form)
+    • Update Tare (Driver self-service)
+
+Tickets Tab:
+  - Table of all scale tickets
+  - Columns: Ticket #, Customer, Product, Gross Weight, Net Weight, Total, Date
+  - Print & Delete buttons for each ticket
+
+Create Ticket Tab:
+  - Form to create new tickets
+  - Dropdowns for Customer, Product, Truck, Trailer
+  - Gross Weight input
+  - Delivery Method: Location or Mileage
+  - Optional WSDOT fields
+
+Update Tare Tab:
+  - Select truck
+  - Enter new tare weight
+  - Update button
+
+================================================================================
+                      REQUIRED - BACKEND MUST BE RUNNING
+================================================================================
+
+BEFORE starting frontend, make sure backend is running:
+
+In another terminal:
+cd scale-ticket-backend
+npm run dev
+
+You should see:
+✅ Scale Ticket API running on port 3000
+
+================================================================================
+                        KEY FEATURES
+================================================================================
+
+✅ Auto-Calculations
+   - Backend auto-calculates: net_weight, tax, total
+   - Frontend shows all values
+
+✅ Single Gross Weight Input
+   - User enters only gross_weight
+   - Tare looked up automatically
+   - Net weight = gross - tare
+
+✅ Location vs Mileage Delivery
+   - User selects method (location or mileage)
+   - Backend looks up correct rate
+   - Delivery charge applied automatically
+
+✅ WSDOT Ticket Support
+   - Check box to enable WSDOT fields
+   - Extra fields for DOT code, job number, etc.
+   - Ready for HaulHub integration
+
+✅ Driver Self-Service Tare Updates
+   - Drivers can update truck tare weights
+   - No admin needed
+
+================================================================================
+                        TROUBLESHOOTING
+================================================================================
+
+Q: Frontend won't start
+A: 
+   1. npm install
+   2. Check node version: node --version (need v14+)
+   3. Delete node_modules and npm install again
+
+Q: "Cannot GET /" when opening http://localhost:4200
+A:
+   1. Wait for compilation: "✔ Compiled successfully"
+   2. Check terminal for errors
+   3. Try http://localhost:4200 again
+
+Q: Dropdowns show "Select..." but no options
+A:
+   1. Check backend is running on port 3000
+   2. Open DevTools (F12) → Console tab
+   3. Look for errors like "Failed to fetch"
+   4. Check Network tab for API calls
+
+Q: Can't create ticket / Form doesn't submit
+A:
+   1. Fill all required fields (marked with *)
+   2. Open Console (F12) for error messages
+   3. Check Network tab POST response
+
+Q: "API connection refused"
+A:
+   1. Is backend running? npm run dev (in backend folder)
+   2. Is it on port 3000?
+   3. Check firewall settings
+
+================================================================================
+                      TESTING THE SYSTEM
+================================================================================
+
+See: TESTING_GUIDE.txt for complete step-by-step testing
+
+Quick test:
+  1. Click Tickets tab
+  2. See any tickets? If yes, backend is working
+  3. Click Create Ticket tab
+  4. Fill form and click "Create Ticket"
+  5. Should see success message
+  6. Refresh Tickets tab, new ticket should appear
+
+================================================================================
+                      PROJECT STRUCTURE
+================================================================================
+
+src/
+├── app/
+│   ├── app.component.ts/html/css      (Main layout)
+│   └── app.module.ts                  (Module definition)
+├── components/
+│   ├── ticket-entry.component.*       (Create ticket form)
+│   ├── ticket-list.component.*        (View all tickets)
+│   └── truck-tare.component.*         (Update tare)
+├── services/
+│   ├── ticket.service.ts              (Ticket API)
+│   ├── customer.service.ts            (Customer API)
+│   ├── product.service.ts             (Product API)
+│   ├── truck.service.ts               (Truck API)
+│   ├── trailer.service.ts             (Trailer API)
+│   ├── supplier.service.ts            (Supplier API)
+│   ├── tax-rate.service.ts            (Tax Rate API)
+│   └── delivery-rate.service.ts       (Delivery Rate API)
+├── models/
+│   └── index.ts                       (Data interfaces)
+├── environments/
+│   ├── environment.ts                 (Development config)
+│   └── environment.prod.ts            (Production config)
+├── main.ts                            (Entry point)
+└── styles.css                         (Global styles)
+
+================================================================================
+                      COMMANDS REFERENCE
+================================================================================
+
+ng serve
+  - Start development server (port 4200)
+
+ng build
+  - Build for production (output in dist/)
+
+ng build --configuration production
+  - Production build with optimizations
+
+ng test
+  - Run unit tests
+
+npm install
+  - Install dependencies
+
+npm update
+  - Update dependencies
+
+================================================================================
+                        PRODUCTION DEPLOYMENT
+================================================================================
+
+1. Build for production:
+   ng build --configuration production
+
+2. Output in: dist/scale-ticket-frontend
+
+3. Deploy the dist folder to your web server
+
+4. Update environment.prod.ts with your API URL before building
+
+================================================================================
+                          SUPPORT
+================================================================================
+
+For issues:
+  1. Check TESTING_GUIDE.txt
+  2. Check browser console (F12)
+  3. Check Network tab for API errors
+  4. Verify backend is running
+  5. Check API URL in environment.ts
+
+Expected workflow:
+  1. Backend running on http://localhost:3000
+  2. Frontend running on http://localhost:4200
+  3. Both communicating without errors
+  4. All dropdowns populate
+  5. Can create and view tickets
+
+================================================================================
+
+You're all set! Enjoy using the Scale Ticket System! 🚀
+
+================================================================================
