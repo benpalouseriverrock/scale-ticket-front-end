@@ -1,11 +1,13 @@
-import { Component, OnInit } from '@angular/core';
-import { Ticket, Customer, Product, Truck, Trailer, DeliveryRate } from '../models/index';
+import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
+import { forkJoin } from 'rxjs';
+import { Ticket, Customer, Product, Truck, Trailer, DeliveryRate, WsdotProject } from '../models/index';
 import { TicketService } from '../services/ticket.service';
 import { CustomerService } from '../services/customer.service';
 import { ProductService } from '../services/product.service';
 import { TruckService } from '../services/truck.service';
 import { TrailerService } from '../services/trailer.service';
 import { DeliveryRateService } from '../services/delivery-rate.service';
+import { WsdotProjectService } from '../services/wsdot-project.service';
 
 @Component({
   selector: 'app-ticket-entry',
@@ -13,7 +15,13 @@ import { DeliveryRateService } from '../services/delivery-rate.service';
   styleUrls: ['./ticket-entry.component.css']
 })
 export class TicketEntryComponent implements OnInit {
-  
+  @Input() editTicket: any = null;
+  @Output() editDone = new EventEmitter<void>();
+
+  // Edit mode state
+  editMode = false;
+  editingTicketId: number | undefined;
+
   // Form Data
   ticket: Ticket = {
     customer_id: 0,
@@ -31,8 +39,14 @@ export class TicketEntryComponent implements OnInit {
     cc_fee: 0,
     is_wsdot_ticket: false,
     dot_code: '',
-    job_number: '',
     contract_number: '',
+    job_number: '',
+    mix_id: '',
+    phase_code: '',
+    phase_description: '',
+    dispatch_number: '',
+    purchase_order_number: '',
+    weighmaster: '',
     comments: ''
   };
 
@@ -42,6 +56,8 @@ export class TicketEntryComponent implements OnInit {
   trucks: Truck[] = [];
   trailers: Trailer[] = [];
   deliveryRates: DeliveryRate[] = [];
+  wsdotProjects: WsdotProject[] = [];
+  selectedProjectId: number | null = null;
 
   // Selected Items (for display)
   selectedCustomer: Customer | null = null;
@@ -67,6 +83,8 @@ export class TicketEntryComponent implements OnInit {
   loading = false;
   errorMessage = '';
   successMessage = '';
+  manualTareEnabled = false;
+  manualTareWeight = 0;
 
   constructor(
     private ticketService: TicketService,
@@ -74,54 +92,89 @@ export class TicketEntryComponent implements OnInit {
     private productService: ProductService,
     private truckService: TruckService,
     private trailerService: TrailerService,
-    private deliveryRateService: DeliveryRateService
+    private deliveryRateService: DeliveryRateService,
+    private wsdotProjectService: WsdotProjectService
   ) {}
 
   ngOnInit(): void {
-    this.loadCustomers();
-    this.loadProducts();
-    this.loadTrucks();
-    this.loadTrailers();
-    this.loadDeliveryRates();
-  }
-
-  // ============================================================================
-  // DATA LOADING
-  // ============================================================================
-
-  loadCustomers() {
-    this.customerService.getAll().subscribe({
-      next: (data) => { this.customers = data; },
-      error: (err) => { this.errorMessage = 'Failed to load customers'; }
+    forkJoin({
+      customers: this.customerService.getAll(),
+      products: this.productService.getAll(),
+      trucks: this.truckService.getAll(),
+      trailers: this.trailerService.getAll(),
+      deliveryRates: this.deliveryRateService.getAll(),
+      wsdotProjects: this.wsdotProjectService.getAll()
+    }).subscribe({
+      next: ({ customers, products, trucks, trailers, deliveryRates, wsdotProjects }) => {
+        this.customers = customers;
+        this.products = products;
+        this.trucks = trucks;
+        this.trailers = trailers;
+        this.deliveryRates = deliveryRates;
+        this.wsdotProjects = wsdotProjects;
+        if (this.editTicket) {
+          this.populateFormFromTicket(this.editTicket);
+        }
+      },
+      error: () => { this.errorMessage = 'Failed to load form data'; }
     });
   }
 
-  loadProducts() {
-    this.productService.getAll().subscribe({
-      next: (data) => { this.products = data; },
-      error: (err) => { this.errorMessage = 'Failed to load products'; }
-    });
-  }
+  populateFormFromTicket(t: any) {
+    this.editMode = true;
+    this.editingTicketId = t.ticket_id;
 
-  loadTrucks() {
-    this.truckService.getAll().subscribe({
-      next: (data) => { this.trucks = data; },
-      error: (err) => { this.errorMessage = 'Failed to load trucks'; }
-    });
-  }
+    this.ticket = {
+      customer_id: Number(t.customer_id),
+      product_id: Number(t.product_id),
+      truck_id: Number(t.truck_id),
+      trailer_id: t.trailer_id ? Number(t.trailer_id) : undefined,
+      truck_weight: Number(t.truck_weight) || 0,
+      pup_weight: Number(t.pup_weight) || 0,
+      gross_weight: Number(t.gross_weight) || 0,
+      delivery_method: t.delivery_method || 'location',
+      delivery_input_value: t.delivery_input_value || '',
+      job_name: t.job_name || '',
+      delivered_by: t.delivered_by || '',
+      delivery_location: t.delivery_location || '',
+      cc_fee: Number(t.cc_fee) || 0,
+      is_wsdot_ticket: t.is_wsdot_ticket || false,
+      dot_code: t.dot_code || '',
+      contract_number: t.contract_number || '',
+      job_number: t.job_number || '',
+      mix_id: t.mix_id || '',
+      phase_code: t.phase_code || '',
+      phase_description: t.phase_description || '',
+      dispatch_number: t.dispatch_number || '',
+      purchase_order_number: t.purchase_order_number || '',
+      weighmaster: t.weighmaster || '',
+      comments: t.comments || ''
+    };
 
-  loadTrailers() {
-    this.trailerService.getAll().subscribe({
-      next: (data) => { this.trailers = data; },
-      error: (err) => { this.errorMessage = 'Failed to load trailers'; }
-    });
-  }
+    this.selectedCustomer = this.customers.find(c => c.customer_id === t.customer_id) || null;
+    this.selectedProduct = this.products.find(p => p.product_id === t.product_id) || null;
+    this.selectedTruck = this.trucks.find(tr => tr.truck_id === t.truck_id) || null;
+    this.selectedTrailer = t.trailer_id
+      ? (this.trailers.find(tr => tr.trailer_id === t.trailer_id) || null)
+      : null;
 
-  loadDeliveryRates() {
-    this.deliveryRateService.getAll().subscribe({
-      next: (data) => { this.deliveryRates = data; },
-      error: (err) => { this.errorMessage = 'Failed to load delivery rates'; }
-    });
+    if (this.selectedCustomer) {
+      this.calculatedValues.taxRate = this.getTaxRateForState(this.selectedCustomer.customer_state);
+    }
+
+    this.updateDeliveryUnit();
+
+    // Detect manual tare: if stored tare differs from truck+trailer tare
+    if (this.selectedTruck) {
+      const expectedTare = (Number(this.selectedTruck.tare_weight) || 0)
+        + (Number(this.selectedTrailer?.tare_weight) || 0);
+      if (Math.abs(expectedTare - Number(t.tare_weight)) > 0.5) {
+        this.manualTareEnabled = true;
+        this.manualTareWeight = Number(t.tare_weight);
+      }
+    }
+
+    this.calculateAll();
   }
 
   // ============================================================================
@@ -216,10 +269,16 @@ export class TicketEntryComponent implements OnInit {
       return;
     }
 
-    // ✅ STEP 1: Calculate Tare (truck tare + trailer tare)
+    // ✅ STEP 1: Calculate Tare (truck + trailer, or manual override)
     const truckTare = Number(this.selectedTruck.tare_weight) || 0;
     const trailerTare = Number(this.selectedTrailer?.tare_weight) || 0;
-    this.calculatedValues.tare = truckTare + trailerTare;
+    const autoTare = truckTare + trailerTare;
+    if (this.manualTareEnabled) {
+      this.calculatedValues.tare = Number(this.manualTareWeight) || 0;
+    } else {
+      this.calculatedValues.tare = autoTare;
+      this.manualTareWeight = autoTare; // keep in sync for when user enables override
+    }
 
     // ✅ STEP 2: Calculate Net Weight = Gross Weight - Tare Weight
     const grossWeight = Number(this.ticket.gross_weight) || 0;
@@ -263,23 +322,23 @@ export class TicketEntryComponent implements OnInit {
       return 0;
     }
 
-    console.log('Estimating delivery charge:', {
-      method: this.ticket.delivery_method,
-      input: this.ticket.delivery_input_value,
-      availableRates: this.deliveryRates
-    });
+    // per_ton / per_load: inputValue IS the rate — no DB lookup needed
+    if (this.ticket.delivery_method === 'per_ton') {
+      const ratePerTon = Number(this.ticket.delivery_input_value) || 0;
+      return ratePerTon * this.calculatedValues.netTons;
+    }
+    if (this.ticket.delivery_method === 'per_load') {
+      return Number(this.ticket.delivery_input_value) || 0;
+    }
 
-    const rate = this.deliveryRates.find(r => 
-      r.method === this.ticket.delivery_method && 
+    // location / mileage: look up from rate table
+    const rate = this.deliveryRates.find(r =>
+      r.method === this.ticket.delivery_method &&
       r.input_value === this.ticket.delivery_input_value &&
       r.active
     );
 
-    console.log('Found rate:', rate);
-    if (!rate) {
-      console.log('No matching rate found');
-      return 0;
-    }
+    if (!rate) return 0;
 
     if (this.ticket.delivery_method === 'location') {
       return Number(rate.flat_rate) || 0;
@@ -312,20 +371,30 @@ export class TicketEntryComponent implements OnInit {
     this.successMessage = '';
 
     // Prepare ticket data for submission
-    const ticketData = {
+    const ticketData: any = {
       ...this.ticket,
-      delivery_unit: this.calculatedValues.deliveryUnit
+      delivery_unit: this.calculatedValues.deliveryUnit,
+      ...(this.manualTareEnabled ? { manual_tare_override: this.manualTareWeight } : {})
     };
 
-    this.ticketService.create(ticketData).subscribe({
+    const save$ = this.editMode && this.editingTicketId
+      ? this.ticketService.update(this.editingTicketId, ticketData)
+      : this.ticketService.create(ticketData);
+
+    save$.subscribe({
       next: (response) => {
         this.loading = false;
-        this.successMessage = `Ticket #${response.ticket_number} created successfully!`;
-        this.resetForm();
+        if (this.editMode) {
+          this.successMessage = `Ticket #${response.ticket_number} updated successfully!`;
+          setTimeout(() => this.editDone.emit(), 1200);
+        } else {
+          this.successMessage = `Ticket #${response.ticket_number} created successfully!`;
+          this.resetForm();
+        }
       },
       error: (error) => {
         this.loading = false;
-        this.errorMessage = error.error?.error || 'Failed to create ticket';
+        this.errorMessage = error.error?.error || (this.editMode ? 'Failed to update ticket' : 'Failed to create ticket');
       }
     });
   }
@@ -354,6 +423,32 @@ export class TicketEntryComponent implements OnInit {
     return true;
   }
 
+  onProjectChange() {
+    if (!this.selectedProjectId) return;
+    const project = this.wsdotProjects.find(p => p.project_id === Number(this.selectedProjectId));
+    if (!project) return;
+    this.ticket.contract_number    = project.contract_number    || '';
+    this.ticket.dot_code           = project.dot_code           || '';
+    this.ticket.job_number         = project.job_number         || '';
+    this.ticket.mix_id             = project.mix_id             || '';
+    this.ticket.phase_code         = project.phase_code         || '';
+    this.ticket.phase_description  = project.phase_description  || '';
+    this.ticket.dispatch_number    = project.dispatch_number    || '';
+    this.ticket.purchase_order_number = project.purchase_order_number || '';
+    this.ticket.weighmaster        = project.weighmaster        || '';
+  }
+
+  cancelEdit() {
+    this.editDone.emit();
+  }
+
+  onManualTareToggle() {
+    if (this.manualTareEnabled && this.calculatedValues.tare > 0) {
+      this.manualTareWeight = this.calculatedValues.tare;
+    }
+    this.calculateAll();
+  }
+
   resetForm() {
     this.ticket = {
       customer_id: 0,
@@ -371,8 +466,14 @@ export class TicketEntryComponent implements OnInit {
       cc_fee: 0,
       is_wsdot_ticket: false,
       dot_code: '',
-      job_number: '',
       contract_number: '',
+      job_number: '',
+      mix_id: '',
+      phase_code: '',
+      phase_description: '',
+      dispatch_number: '',
+      purchase_order_number: '',
+      weighmaster: '',
       comments: ''
     };
 
@@ -380,6 +481,9 @@ export class TicketEntryComponent implements OnInit {
     this.selectedProduct = null;
     this.selectedTruck = null;
     this.selectedTrailer = null;
+    this.manualTareEnabled = false;
+    this.manualTareWeight = 0;
+    this.selectedProjectId = null;
 
     this.calculatedValues = {
       tare: 0,

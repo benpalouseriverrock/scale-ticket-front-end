@@ -7,13 +7,15 @@ import { AppComponent } from './app.component';
 import { TicketEntryComponent } from './components/ticket-entry.component';
 import { TicketListComponent } from './components/ticket-list.component';
 import { TruckTareComponent } from './components/truck-tare.component';
+import { TicketPrintComponent } from './components/ticket-print.component';
 
 @NgModule({
   declarations: [
     AppComponent,
     TicketEntryComponent,
     TicketListComponent,
-    TruckTareComponent
+    TruckTareComponent,
+    TicketPrintComponent
   ],
   imports: [
     BrowserModule,

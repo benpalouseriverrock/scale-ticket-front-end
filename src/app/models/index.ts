@@ -50,9 +50,15 @@ export interface Ticket {
   haulhub_pushed_at?: Date;
   haulhub_response?: any;
   haulhub_status_code?: number;
-  
+
   loads_today?: number;
   quantity_shipped_today?: number;
+
+  // Joined fields returned by the API
+  customer_name?: string;
+  product_name?: string;
+  truck_number?: string;
+  trailer_number?: string;
 }
 
 export interface Customer {
@@ -130,4 +136,19 @@ export interface TaxRate {
   state_code: string;
   rate_percentage: number;
   active: boolean;
+}
+
+export interface WsdotProject {
+  project_id?: number;
+  project_name: string;
+  contract_number?: string;
+  dot_code?: string;
+  job_number?: string;
+  mix_id?: string;
+  phase_code?: string;
+  phase_description?: string;
+  dispatch_number?: string;
+  purchase_order_number?: string;
+  weighmaster?: string;
+  is_active?: boolean;
 }

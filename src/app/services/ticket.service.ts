@@ -22,6 +22,10 @@ export class TicketService {
     return this.http.post<Ticket>(this.apiUrl, ticket);
   }
 
+  update(id: number, ticket: any): Observable<Ticket> {
+    return this.http.put<Ticket>(`${this.apiUrl}/${id}`, ticket);
+  }
+
   delete(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/${id}`);
   }

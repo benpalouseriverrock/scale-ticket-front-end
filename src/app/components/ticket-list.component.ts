@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, Output, EventEmitter } from '@angular/core';
 import { Ticket } from '../models';
 import { TicketService } from '../services/ticket.service';
 
@@ -8,6 +8,9 @@ import { TicketService } from '../services/ticket.service';
   styleUrls: ['./ticket-list.component.css']
 })
 export class TicketListComponent implements OnInit {
+  @Output() printRequested = new EventEmitter<{ id: number; mode: 'ticket' | 'invoice' }>();
+  @Output() editRequested = new EventEmitter<any>();
+
   tickets: Ticket[] = [];
   loading = true;
 
@@ -44,15 +47,26 @@ export class TicketListComponent implements OnInit {
     }
   }
 
-  printTicket(id: number | undefined) {
+  printTicket(id: number | undefined, mode: 'ticket' | 'invoice') {
     if (!id) return;
-    this.ticketService.markPrinted(id, 'ticket').subscribe({
-      next: () => {
-        alert('Ticket marked as printed');
+    this.printRequested.emit({ id, mode });
+  }
+
+  editTicket(ticket: any) {
+    this.editRequested.emit(ticket);
+  }
+
+  pushToHaulHub(id: number | undefined) {
+    if (!id) return;
+    if (!confirm('Push this WSDOT ticket to HaulHub?')) return;
+    this.ticketService.pushToHaulHub(id).subscribe({
+      next: (res: any) => {
+        const ok = res.haulhub_status === 200 || res.haulhub_status === 201;
+        alert(ok ? 'Ticket pushed to HaulHub successfully.' : `HaulHub responded with status ${res.haulhub_status}.`);
         this.loadTickets();
       },
-      error: (error) => {
-        console.error('Error:', error);
+      error: (error: any) => {
+        alert('Failed to push to HaulHub: ' + (error.error?.error || error.message));
       }
     });
   }

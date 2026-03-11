@@ -1,4 +1,4 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark no-print">
   <div class="container-fluid">
     <a class="navbar-brand" href="#">⚙️ Scale Ticket System</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -20,8 +20,21 @@
   </div>
 </nav>
 
-<div class="container-fluid mt-4">
-  <app-ticket-list *ngIf="currentView === 'tickets'"></app-ticket-list>
-  <app-ticket-entry *ngIf="currentView === 'create'"></app-ticket-entry>
+<div class="container-fluid mt-4 no-print" *ngIf="currentView !== 'print'">
+  <app-ticket-list *ngIf="currentView === 'tickets'"
+    (printRequested)="onPrintRequested($event)"
+    (editRequested)="onEditRequested($event)">
+  </app-ticket-list>
+  <app-ticket-entry *ngIf="currentView === 'create'"
+    [editTicket]="editingTicket"
+    (editDone)="setView('tickets')">
+  </app-ticket-entry>
   <app-truck-tare *ngIf="currentView === 'tare'"></app-truck-tare>
 </div>
+
+<app-ticket-print
+  *ngIf="currentView === 'print' && printTicketId"
+  [ticketId]="printTicketId!"
+  [mode]="printMode"
+  (done)="setView('tickets')">
+</app-ticket-print>
