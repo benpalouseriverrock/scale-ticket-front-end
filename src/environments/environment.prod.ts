@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://your-api-url.com/api'
+  apiUrl: 'https://scale-ticket-back-end-production.up.railway.app/api'
 };
