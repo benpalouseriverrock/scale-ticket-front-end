@@ -4,8 +4,8 @@
   "description": "Scale Ticket System - Angular Frontend",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build",
+    "start": "serve -s dist/scale-ticket-frontend -l 8080",
+    "build": "ng build --configuration=production",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },
@@ -21,7 +21,8 @@
     "@angular/router": "^15.0.0",
     "rxjs": "~7.5.0",
     "tslib": "^2.3.0",
-    "zone.js": "~0.12.0"
+    "zone.js": "~0.12.0",
+    "serve": "^14.2.0"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^15.0.0",
