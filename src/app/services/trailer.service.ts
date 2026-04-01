@@ -26,6 +26,10 @@ export class TrailerService {
     return this.http.put<Trailer>(`${this.apiUrl}/${id}`, trailer);
   }
 
+  updateTare(id: number, tare_weight: number): Observable<any> {
+    return this.http.post(`${this.apiUrl}/${id}/tare`, { tare_weight });
+  }
+
   delete(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/${id}`);
   }

@@ -1,0 +1,123 @@
+<div class="reports-wrapper">
+  <h2>Monthly Reports</h2>
+
+  <!-- Month Picker -->
+  <div class="row mb-4">
+    <div class="col-auto">
+      <label class="form-label">Year</label>
+      <select [(ngModel)]="selectedYear" (change)="onYearChange()" class="form-select">
+        <option *ngFor="let y of years" [ngValue]="y">{{ y }}</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Month</label>
+      <select [(ngModel)]="selectedMonth" (change)="onMonthChange()" class="form-select">
+        <option *ngFor="let m of monthsForYear" [ngValue]="m">{{ monthName(m) }}</option>
+      </select>
+    </div>
+    <div class="col-auto d-flex align-items-end">
+      <button (click)="loadReport()" class="btn btn-primary">Load Report</button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="text-muted">Loading report...</div>
+  <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
+
+  <ng-container *ngIf="report && !loading">
+    <h4 class="mb-3">{{ monthLabel }}</h4>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="summary-card">
+          <div class="summary-label">Total Tickets</div>
+          <div class="summary-value">{{ report.summary.ticket_count }}</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="summary-card">
+          <div class="summary-label">Total Tons</div>
+          <div class="summary-value">{{ formatTons(report.summary.total_tons) }}</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="summary-card">
+          <div class="summary-label">Total Revenue</div>
+          <div class="summary-value revenue">{{ formatCurrency(report.summary.total_revenue) }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- By Customer -->
+    <div class="section-card mb-4">
+      <h5 class="section-title">By Customer</h5>
+      <div *ngIf="report.by_customer.length === 0" class="text-muted">No data</div>
+      <table *ngIf="report.by_customer.length > 0" class="table table-sm table-striped mb-0">
+        <thead>
+          <tr>
+            <th>Customer</th>
+            <th class="text-end">Tickets</th>
+            <th class="text-end">Tons</th>
+            <th class="text-end">Revenue</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of report.by_customer">
+            <td>{{ row.customer_name }}</td>
+            <td class="text-end">{{ row.ticket_count }}</td>
+            <td class="text-end">{{ formatTons(row.total_tons) }}</td>
+            <td class="text-end">{{ formatCurrency(row.total_revenue) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- By Product -->
+    <div class="section-card mb-4">
+      <h5 class="section-title">By Product</h5>
+      <div *ngIf="report.by_product.length === 0" class="text-muted">No data</div>
+      <table *ngIf="report.by_product.length > 0" class="table table-sm table-striped mb-0">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th class="text-end">Tickets</th>
+            <th class="text-end">Tons</th>
+            <th class="text-end">Revenue</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of report.by_product">
+            <td>{{ row.product_name }}</td>
+            <td class="text-end">{{ row.ticket_count }}</td>
+            <td class="text-end">{{ formatTons(row.total_tons) }}</td>
+            <td class="text-end">{{ formatCurrency(row.total_revenue) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Daily Breakdown -->
+    <div class="section-card mb-4">
+      <h5 class="section-title">Daily Breakdown</h5>
+      <div *ngIf="report.daily.length === 0" class="text-muted">No data</div>
+      <table *ngIf="report.daily.length > 0" class="table table-sm table-striped mb-0">
+        <thead>
+          <tr>
+            <th>Day</th>
+            <th class="text-end">Tickets</th>
+            <th class="text-end">Tons</th>
+            <th class="text-end">Revenue</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of report.daily">
+            <td>{{ row.day }}</td>
+            <td class="text-end">{{ row.ticket_count }}</td>
+            <td class="text-end">{{ formatTons(row.total_tons) }}</td>
+            <td class="text-end">{{ formatCurrency(row.total_revenue) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </ng-container>
+</div>

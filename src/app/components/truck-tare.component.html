@@ -1,29 +1,165 @@
-<div class="truck-tare-wrapper">
-  <h2>Update Truck Tare Weight</h2>
-
-  <div *ngIf="message" class="alert alert-info">{{ message }}</div>
-
+<div class="container-fluid mt-4">
   <div class="row">
-    <div class="col-lg-6 col-md-8">
-      <div class="mb-3">
-        <label>Select Truck</label>
-        <select [(ngModel)]="selectedTruckId" (change)="onTruckSelect()" class="form-select">
-          <option [ngValue]="null">Select Truck</option>
-          <option *ngFor="let t of trucks" [ngValue]="t.truck_id">{{ t.unit_number }}</option>
-        </select>
+    <div class="col-lg-8 offset-lg-2">
+
+      <div class="card mb-3 border-primary">
+        <div class="card-header bg-primary text-white">
+          <h3 class="mb-0">Fleet Management</h3>
+        </div>
       </div>
 
-      <div *ngIf="selectedTruck" class="info-box mb-3">
-        <p><strong>Current Tare Weight:</strong> {{ selectedTruck.tare_weight }} lbs</p>
-        <p><strong>Configuration:</strong> {{ selectedTruck.configuration }}</p>
+      <!-- TABS -->
+      <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+          <button class="nav-link" [class.active]="activeTab === 'truck-tare'" (click)="setTab('truck-tare')">Update Truck Tare</button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" [class.active]="activeTab === 'add-truck'" (click)="setTab('add-truck')">Add New Truck</button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" [class.active]="activeTab === 'trailer-tare'" (click)="setTab('trailer-tare')">Update Trailer Tare</button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" [class.active]="activeTab === 'add-trailer'" (click)="setTab('add-trailer')">Add New Trailer</button>
+        </li>
+      </ul>
+
+      <!-- UPDATE TRUCK TARE -->
+      <div *ngIf="activeTab === 'truck-tare'" class="card">
+        <div class="card-header bg-light"><h5 class="mb-0">Update Truck Tare Weight</h5></div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Select Truck</label>
+            <select [(ngModel)]="selectedTruckId" (ngModelChange)="onTruckSelect()" class="form-select">
+              <option [ngValue]="null">Select truck...</option>
+              <option *ngFor="let truck of trucks" [ngValue]="truck.truck_id">
+                {{ truck.unit_number }} — Current Tare: {{ truck.tare_weight | number }} lbs
+              </option>
+            </select>
+          </div>
+          <div *ngIf="selectedTruck" class="mb-3">
+            <label class="form-label fw-bold">New Tare Weight (lbs)</label>
+            <input [(ngModel)]="newTareWeight" type="number" class="form-control" placeholder="Enter new tare weight" />
+          </div>
+          <div *ngIf="truckTareMessage" class="alert mb-3"
+               [class.alert-success]="truckTareSuccess" [class.alert-danger]="!truckTareSuccess">
+            {{ truckTareMessage }}
+          </div>
+          <button *ngIf="selectedTruck" class="btn btn-primary" (click)="updateTruckTare()">Update Tare Weight</button>
+        </div>
       </div>
 
-      <div class="mb-3">
-        <label>New Tare Weight (lbs)</label>
-        <input [(ngModel)]="newTareWeight" type="number" class="form-control" />
+      <!-- ADD NEW TRUCK -->
+      <div *ngIf="activeTab === 'add-truck'" class="card">
+        <div class="card-header bg-light"><h5 class="mb-0">Add New Truck</h5></div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Unit Number *</label>
+            <input [(ngModel)]="newTruck.unit_number" type="text" class="form-control" placeholder="e.g. 17-Dump" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Configuration</label>
+            <input [(ngModel)]="newTruck.configuration" type="text" class="form-control" placeholder="e.g. Single Axle Dump" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Tare Weight (lbs) *</label>
+            <input [(ngModel)]="newTruck.tare_weight" type="number" class="form-control" placeholder="Enter tare weight" />
+          </div>
+          <div *ngIf="addTruckMessage" class="alert mb-3"
+               [class.alert-success]="addTruckSuccess" [class.alert-danger]="!addTruckSuccess">
+            {{ addTruckMessage }}
+          </div>
+          <button class="btn btn-success" (click)="addTruck()">Add Truck</button>
+        </div>
       </div>
 
-      <button (click)="updateTare()" class="btn btn-primary">Update</button>
+      <!-- UPDATE TRAILER TARE -->
+      <div *ngIf="activeTab === 'trailer-tare'" class="card">
+        <div class="card-header bg-light"><h5 class="mb-0">Update Trailer Tare Weight</h5></div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Select Trailer</label>
+            <select [(ngModel)]="selectedTrailerId" (ngModelChange)="onTrailerSelect()" class="form-select">
+              <option [ngValue]="null">Select trailer...</option>
+              <option *ngFor="let trailer of trailers" [ngValue]="trailer.trailer_id">
+                {{ trailer.unit_number }} — Current Tare: {{ trailer.tare_weight | number }} lbs
+              </option>
+            </select>
+          </div>
+          <div *ngIf="selectedTrailer" class="mb-3">
+            <label class="form-label fw-bold">New Tare Weight (lbs)</label>
+            <input [(ngModel)]="newTrailerTareWeight" type="number" class="form-control" placeholder="Enter new tare weight" />
+          </div>
+          <div *ngIf="trailerTareMessage" class="alert mb-3"
+               [class.alert-success]="trailerTareSuccess" [class.alert-danger]="!trailerTareSuccess">
+            {{ trailerTareMessage }}
+          </div>
+          <button *ngIf="selectedTrailer" class="btn btn-primary" (click)="updateTrailerTare()">Update Tare Weight</button>
+        </div>
+      </div>
+
+      <!-- ADD NEW TRAILER -->
+      <div *ngIf="activeTab === 'add-trailer'" class="card">
+        <div class="card-header bg-light"><h5 class="mb-0">Add New Trailer</h5></div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Unit Number *</label>
+            <input [(ngModel)]="newTrailer.unit_number" type="text" class="form-control" placeholder="e.g. 7P" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Configuration</label>
+            <input [(ngModel)]="newTrailer.configuration" type="text" class="form-control" placeholder="e.g. Pup Trailer" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Tare Weight (lbs)</label>
+            <input [(ngModel)]="newTrailer.tare_weight" type="number" class="form-control" placeholder="Enter tare weight" />
+          </div>
+          <div *ngIf="addTrailerMessage" class="alert mb-3"
+               [class.alert-success]="addTrailerSuccess" [class.alert-danger]="!addTrailerSuccess">
+            {{ addTrailerMessage }}
+          </div>
+          <button class="btn btn-success" (click)="addTrailer()">Add Trailer</button>
+        </div>
+      </div>
+
+      <!-- FLEET OVERVIEW -->
+      <div class="row mt-4">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header bg-light"><h6 class="mb-0">Trucks ({{ trucks.length }})</h6></div>
+            <div class="card-body p-0">
+              <table class="table table-sm mb-0">
+                <thead><tr><th>Unit</th><th>Configuration</th><th class="text-end">Tare (lbs)</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let truck of trucks">
+                    <td>{{ truck.unit_number }}</td>
+                    <td class="text-muted small">{{ truck.configuration }}</td>
+                    <td class="text-end">{{ truck.tare_weight | number }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header bg-light"><h6 class="mb-0">Trailers ({{ trailers.length }})</h6></div>
+            <div class="card-body p-0">
+              <table class="table table-sm mb-0">
+                <thead><tr><th>Unit</th><th>Configuration</th><th class="text-end">Tare (lbs)</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let trailer of trailers">
+                    <td>{{ trailer.unit_number }}</td>
+                    <td class="text-muted small">{{ trailer.configuration }}</td>
+                    <td class="text-end">{{ trailer.tare_weight | number }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>

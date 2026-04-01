@@ -34,14 +34,28 @@
           <div class="card-body">
             <div class="row mb-3">
               <div class="col-md-6">
-                <label class="form-label fw-bold">Customer *</label>
-                <select [(ngModel)]="ticket.customer_id" (ngModelChange)="onCustomerChange()" 
+                <label class="form-label fw-bold d-flex align-items-center gap-2">
+                  Customer *
+                  <span class="d-flex align-items-center gap-1 fw-normal fs-6">
+                    <input type="checkbox" class="form-check-input mt-0"
+                           [(ngModel)]="manualCustomerMode" name="manualCustomerMode"
+                           id="manualCustomerToggle" (ngModelChange)="onManualCustomerToggle()" />
+                    <label class="form-check-label text-secondary" for="manualCustomerToggle">Enter manually</label>
+                  </span>
+                </label>
+                <select *ngIf="!manualCustomerMode"
+                        [(ngModel)]="ticket.customer_id" (ngModelChange)="onCustomerChange()"
                         name="customer_id" class="form-select" required>
                   <option [ngValue]="0">Select Customer...</option>
                   <option *ngFor="let customer of customers" [ngValue]="customer.customer_id">
                     {{ customer.name }}
                   </option>
                 </select>
+                <input *ngIf="manualCustomerMode"
+                       [(ngModel)]="manualCustomerName" name="manualCustomerName"
+                       type="text" class="form-control border-warning"
+                       placeholder="Enter customer name (not in system)" />
+                <small *ngIf="manualCustomerMode" class="text-warning fw-semibold">Manual entry — tax rate defaults to WA 7.9%</small>
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-bold">Job Name / PO#</label>
@@ -225,15 +239,23 @@
               </div>
               <div class="col-md-4" *ngIf="ticket.delivery_method === 'location'">
                 <label class="form-label fw-bold">Delivery Location</label>
-                <input [(ngModel)]="ticket.delivery_input_value" (ngModelChange)="calculateAll()"
-                       name="delivery_input_value" type="text" class="form-control"
-                       placeholder="Enter location name" />
+                <select [(ngModel)]="ticket.delivery_input_value" (ngModelChange)="calculateAll()"
+                        name="delivery_input_value" class="form-select">
+                  <option value="">Select location...</option>
+                  <option *ngFor="let rate of locationRates" [value]="rate.input_value">
+                    {{ rate.input_value }}
+                  </option>
+                </select>
               </div>
               <div class="col-md-4" *ngIf="ticket.delivery_method === 'mileage'">
-                <label class="form-label fw-bold">Miles (One-Way)</label>
-                <input [(ngModel)]="ticket.delivery_input_value" (ngModelChange)="calculateAll()"
-                       name="delivery_input_value" type="number" class="form-control"
-                       placeholder="Enter miles" />
+                <label class="form-label fw-bold">Mileage Range</label>
+                <select [(ngModel)]="ticket.delivery_input_value" (ngModelChange)="calculateAll()"
+                        name="delivery_input_value" class="form-select">
+                  <option value="">Select mileage range...</option>
+                  <option *ngFor="let rate of mileageRates" [value]="rate.input_value">
+                    {{ rate.input_value }} miles
+                  </option>
+                </select>
               </div>
               <div class="col-md-4" *ngIf="ticket.delivery_method === 'per_ton'">
                 <label class="form-label fw-bold">Rate ($/ton)</label>
@@ -431,17 +453,36 @@
         <!-- FORM ACTIONS -->
         <div class="card mb-3">
           <div class="card-body text-center">
-            <button type="submit" class="btn btn-lg me-2" [class.btn-primary]="!editMode" [class.btn-warning]="editMode" [disabled]="loading">
-              <i class="fas fa-save"></i>
-              <span *ngIf="!loading">{{ editMode ? 'Save Changes' : 'Create Ticket' }}</span>
-              <span *ngIf="loading">{{ editMode ? 'Saving...' : 'Creating...' }}</span>
-            </button>
-            <button *ngIf="!editMode" type="button" class="btn btn-secondary btn-lg" (click)="resetForm()">
-              <i class="fas fa-redo"></i> Reset Form
-            </button>
-            <button *ngIf="editMode" type="button" class="btn btn-outline-secondary btn-lg" (click)="cancelEdit()">
-              Cancel
-            </button>
+            <!-- Normal submit button - hidden when print options are showing -->
+            <ng-container *ngIf="!showPrintOptions">
+              <button type="submit" class="btn btn-lg me-2" [class.btn-primary]="!editMode" [class.btn-warning]="editMode" [disabled]="loading">
+                <i class="fas fa-save"></i>
+                <span *ngIf="!loading">{{ editMode ? 'Save Changes' : 'Create Ticket' }}</span>
+                <span *ngIf="loading">{{ editMode ? 'Saving...' : 'Creating...' }}</span>
+              </button>
+              <button *ngIf="!editMode" type="button" class="btn btn-secondary btn-lg" (click)="resetForm()">
+                <i class="fas fa-redo"></i> Reset Form
+              </button>
+              <button *ngIf="editMode" type="button" class="btn btn-outline-secondary btn-lg" (click)="cancelEdit()">
+                Cancel
+              </button>
+            </ng-container>
+
+            <!-- Print options shown after successful ticket creation -->
+            <ng-container *ngIf="showPrintOptions && createdTicket">
+              <div class="mb-3">
+                <strong class="d-block mb-2 fs-5">Ticket #{{ createdTicket.ticket_number }} created — print now?</strong>
+                <button type="button" class="btn btn-primary btn-lg me-2" (click)="onPrintCreatedTicket('ticket')">
+                  <i class="fas fa-print"></i> Print Ticket
+                </button>
+                <button type="button" class="btn btn-success btn-lg me-2" (click)="onPrintCreatedTicket('invoice')">
+                  <i class="fas fa-file-invoice-dollar"></i> Print Invoice
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-lg" (click)="onCreateAnother()">
+                  <i class="fas fa-plus"></i> Create Another
+                </button>
+              </div>
+            </ng-container>
           </div>
         </div>
 

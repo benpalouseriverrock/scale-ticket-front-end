@@ -8,6 +8,8 @@ import { TicketEntryComponent } from './components/ticket-entry.component';
 import { TicketListComponent } from './components/ticket-list.component';
 import { TruckTareComponent } from './components/truck-tare.component';
 import { TicketPrintComponent } from './components/ticket-print.component';
+import { AdminComponent } from './components/admin.component';
+import { ReportsComponent } from './components/reports.component';
 
 @NgModule({
   declarations: [
@@ -15,7 +17,9 @@ import { TicketPrintComponent } from './components/ticket-print.component';
     TicketEntryComponent,
     TicketListComponent,
     TruckTareComponent,
-    TicketPrintComponent
+    TicketPrintComponent,
+    AdminComponent,
+    ReportsComponent
   ],
   imports: [
     BrowserModule,

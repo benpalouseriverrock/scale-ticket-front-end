@@ -343,13 +343,32 @@
   }
 
   /* Each of the 3 copies must fit in exactly 1/3 of 11in */
+  /* 3 × 3.6in + 2 × 0.05in = 10.9in — fits within 11in page */
   .ticket-copy {
     width: 8.5in;
-    height: 3.45in;
+    height: 3.6in;
     margin: 0;
     border: 1px solid #333;
     box-sizing: border-box;
     overflow: hidden;
+  }
+
+  /* Tighten body padding so content fits the reduced height */
+  .ticket-header {
+    padding: 5px 12px 4px;
+  }
+
+  .body-left,
+  .body-center {
+    padding: 6px 10px;
+  }
+
+  .body-right {
+    padding: 4px 10px;
+  }
+
+  .ticket-footer {
+    padding: 3px 10px;
   }
 
   /* Force blue to print */
@@ -360,7 +379,7 @@
   }
 
   .cut-line {
-    height: 0.1in;
+    height: 0.05in;
     margin: 0;
   }
 }

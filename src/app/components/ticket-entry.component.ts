@@ -17,6 +17,7 @@ import { WsdotProjectService } from '../services/wsdot-project.service';
 export class TicketEntryComponent implements OnInit {
   @Input() editTicket: any = null;
   @Output() editDone = new EventEmitter<void>();
+  @Output() printRequested = new EventEmitter<{ id: number; mode: 'ticket' | 'invoice' }>();
 
   // Edit mode state
   editMode = false;
@@ -28,9 +29,9 @@ export class TicketEntryComponent implements OnInit {
     product_id: 0,
     truck_id: 0,
     trailer_id: undefined,
-    truck_weight: 0,        // ✅ FIXED: User enters truck weight
-    pup_weight: 0,          // ✅ FIXED: User enters pup/trailer weight
-    gross_weight: 0,        // ✅ FIXED: AUTO-CALCULATED (truck + pup)
+    truck_weight: 0,
+    pup_weight: 0,
+    gross_weight: 0,
     delivery_method: 'location',
     delivery_input_value: '',
     job_name: '',
@@ -85,6 +86,10 @@ export class TicketEntryComponent implements OnInit {
   successMessage = '';
   manualTareEnabled = false;
   manualTareWeight = 0;
+  createdTicket: any = null;
+  showPrintOptions = false;
+  manualCustomerMode = false;
+  manualCustomerName = '';
 
   constructor(
     private ticketService: TicketService,
@@ -164,7 +169,6 @@ export class TicketEntryComponent implements OnInit {
 
     this.updateDeliveryUnit();
 
-    // Detect manual tare: if stored tare differs from truck+trailer tare
     if (this.selectedTruck) {
       const expectedTare = (Number(this.selectedTruck.tare_weight) || 0)
         + (Number(this.selectedTrailer?.tare_weight) || 0);
@@ -185,11 +189,9 @@ export class TicketEntryComponent implements OnInit {
     const customerId = Number(this.ticket.customer_id);
     const customer = this.customers.find(c => c.customer_id === customerId);
     this.selectedCustomer = customer || null;
-    
     if (customer) {
       this.calculatedValues.taxRate = this.getTaxRateForState(customer.customer_state);
     }
-    
     this.calculateAll();
   }
 
@@ -217,32 +219,23 @@ export class TicketEntryComponent implements OnInit {
   }
 
   // ============================================================================
-  // ✅ WEIGHT CALCULATIONS - FIXED TO MATCH CLIENT REQUIREMENTS
+  // WEIGHT CALCULATIONS
   // ============================================================================
 
   onTruckWeightChange() {
-    // When user enters truck weight, recalculate gross and everything else
     this.calculateGrossWeight();
     this.calculateAll();
   }
 
   onPupWeightChange() {
-    // When user enters pup weight, recalculate gross and everything else
     this.calculateGrossWeight();
     this.calculateAll();
   }
 
   calculateGrossWeight() {
-    // ✅ STEP 1: Calculate GROSS WEIGHT = Truck Weight + Pup Weight
     const truckWeight = Number(this.ticket.truck_weight) || 0;
     const pupWeight = Number(this.ticket.pup_weight) || 0;
     this.ticket.gross_weight = truckWeight + pupWeight;
-
-    console.log('Gross Weight Calculation:', {
-      truckWeight,
-      pupWeight,
-      grossWeight: this.ticket.gross_weight
-    });
   }
 
   updateDeliveryUnit() {
@@ -260,16 +253,10 @@ export class TicketEntryComponent implements OnInit {
   // ============================================================================
 
   calculateAll() {
-    // Early return if required fields are missing
     if (!this.selectedProduct || !this.selectedTruck) {
-      console.log('Cannot calculate - missing product or truck:', {
-        hasProduct: !!this.selectedProduct,
-        hasTruck: !!this.selectedTruck
-      });
       return;
     }
 
-    // ✅ STEP 1: Calculate Tare (truck + trailer, or manual override)
     const truckTare = Number(this.selectedTruck.tare_weight) || 0;
     const trailerTare = Number(this.selectedTrailer?.tare_weight) || 0;
     const autoTare = truckTare + trailerTare;
@@ -277,44 +264,22 @@ export class TicketEntryComponent implements OnInit {
       this.calculatedValues.tare = Number(this.manualTareWeight) || 0;
     } else {
       this.calculatedValues.tare = autoTare;
-      this.manualTareWeight = autoTare; // keep in sync for when user enables override
+      this.manualTareWeight = autoTare;
     }
 
-    // ✅ STEP 2: Calculate Net Weight = Gross Weight - Tare Weight
     const grossWeight = Number(this.ticket.gross_weight) || 0;
     this.calculatedValues.netWeight = grossWeight - this.calculatedValues.tare;
     this.calculatedValues.netTons = this.calculatedValues.netWeight / 2000;
 
-    // Debug logging
-    console.log('Weight Calculations:', {
-      truckWeight: this.ticket.truck_weight,
-      pupWeight: this.ticket.pup_weight,
-      grossWeight: this.ticket.gross_weight,
-      truckTare,
-      trailerTare,
-      totalTare: this.calculatedValues.tare,
-      netWeight: this.calculatedValues.netWeight,
-      netTons: this.calculatedValues.netTons
-    });
-
-    // 3. Calculate Material Cost
     const pricePerTon = Number(this.selectedProduct.price_per_ton) || 0;
     this.calculatedValues.materialCost = this.calculatedValues.netTons * pricePerTon;
 
-    // 4. Estimate Delivery Charge
     this.calculatedValues.deliveryCharge = this.estimateDeliveryCharge();
-
-    // 5. Calculate Subtotal
     this.calculatedValues.subtotal = this.calculatedValues.materialCost + this.calculatedValues.deliveryCharge;
-
-    // 6. Calculate Tax
     this.calculatedValues.taxAmount = this.calculatedValues.subtotal * (this.calculatedValues.taxRate / 100);
 
-    // 7. Calculate Total
     const ccFee = Number(this.ticket.cc_fee) || 0;
     this.calculatedValues.total = this.calculatedValues.subtotal + this.calculatedValues.taxAmount + ccFee;
-
-    console.log('Final Calculations:', this.calculatedValues);
   }
 
   estimateDeliveryCharge(): number {
@@ -322,7 +287,6 @@ export class TicketEntryComponent implements OnInit {
       return 0;
     }
 
-    // per_ton / per_load: inputValue IS the rate — no DB lookup needed
     if (this.ticket.delivery_method === 'per_ton') {
       const ratePerTon = Number(this.ticket.delivery_input_value) || 0;
       return ratePerTon * this.calculatedValues.netTons;
@@ -331,7 +295,6 @@ export class TicketEntryComponent implements OnInit {
       return Number(this.ticket.delivery_input_value) || 0;
     }
 
-    // location / mileage: look up from rate table
     const rate = this.deliveryRates.find(r =>
       r.method === this.ticket.delivery_method &&
       r.input_value === this.ticket.delivery_input_value &&
@@ -343,18 +306,25 @@ export class TicketEntryComponent implements OnInit {
     if (this.ticket.delivery_method === 'location') {
       return Number(rate.flat_rate) || 0;
     } else if (this.ticket.delivery_method === 'mileage') {
-      const miles = Number(this.ticket.delivery_input_value) || 0;
-      return (Number(rate.rate_per_mile) || 0) * miles;
+      return Number(rate.flat_rate) || 0;
     }
 
     return 0;
+  }
+
+  get locationRates(): DeliveryRate[] {
+    return this.deliveryRates.filter(r => r.method === 'location' && r.active);
+  }
+
+  get mileageRates(): DeliveryRate[] {
+    return this.deliveryRates.filter(r => r.method === 'mileage' && r.active);
   }
 
   getTaxRateForState(state?: string): number {
     if (!state) return 8.5;
     if (state === 'ID') return 6.0;
     if (state === 'WA') return 7.9;
-    return 8.5; // Default
+    return 8.5;
   }
 
   // ============================================================================
@@ -370,11 +340,11 @@ export class TicketEntryComponent implements OnInit {
     this.errorMessage = '';
     this.successMessage = '';
 
-    // Prepare ticket data for submission
     const ticketData: any = {
       ...this.ticket,
       delivery_unit: this.calculatedValues.deliveryUnit,
-      ...(this.manualTareEnabled ? { manual_tare_override: this.manualTareWeight } : {})
+      ...(this.manualTareEnabled ? { manual_tare_override: this.manualTareWeight } : {}),
+      ...(this.manualCustomerMode ? { customer_id: null, manual_customer_name: this.manualCustomerName.trim() } : {})
     };
 
     const save$ = this.editMode && this.editingTicketId
@@ -388,8 +358,9 @@ export class TicketEntryComponent implements OnInit {
           this.successMessage = `Ticket #${response.ticket_number} updated successfully!`;
           setTimeout(() => this.editDone.emit(), 1200);
         } else {
+          this.createdTicket = response;
+          this.showPrintOptions = true;
           this.successMessage = `Ticket #${response.ticket_number} created successfully!`;
-          this.resetForm();
         }
       },
       error: (error) => {
@@ -400,8 +371,12 @@ export class TicketEntryComponent implements OnInit {
   }
 
   validateForm(): boolean {
-    if (!this.ticket.customer_id) {
+    if (!this.manualCustomerMode && !this.ticket.customer_id) {
       this.errorMessage = 'Please select a customer';
+      return false;
+    }
+    if (this.manualCustomerMode && !this.manualCustomerName.trim()) {
+      this.errorMessage = 'Please enter customer name';
       return false;
     }
     if (!this.ticket.product_id) {
@@ -427,15 +402,15 @@ export class TicketEntryComponent implements OnInit {
     if (!this.selectedProjectId) return;
     const project = this.wsdotProjects.find(p => p.project_id === Number(this.selectedProjectId));
     if (!project) return;
-    this.ticket.contract_number    = project.contract_number    || '';
-    this.ticket.dot_code           = project.dot_code           || '';
-    this.ticket.job_number         = project.job_number         || '';
-    this.ticket.mix_id             = project.mix_id             || '';
-    this.ticket.phase_code         = project.phase_code         || '';
-    this.ticket.phase_description  = project.phase_description  || '';
-    this.ticket.dispatch_number    = project.dispatch_number    || '';
+    this.ticket.contract_number       = project.contract_number       || '';
+    this.ticket.dot_code              = project.dot_code              || '';
+    this.ticket.job_number            = project.job_number            || '';
+    this.ticket.mix_id                = project.mix_id                || '';
+    this.ticket.phase_code            = project.phase_code            || '';
+    this.ticket.phase_description     = project.phase_description     || '';
+    this.ticket.dispatch_number       = project.dispatch_number       || '';
     this.ticket.purchase_order_number = project.purchase_order_number || '';
-    this.ticket.weighmaster        = project.weighmaster        || '';
+    this.ticket.weighmaster           = project.weighmaster           || '';
   }
 
   cancelEdit() {
@@ -447,6 +422,27 @@ export class TicketEntryComponent implements OnInit {
       this.manualTareWeight = this.calculatedValues.tare;
     }
     this.calculateAll();
+  }
+
+  onPrintCreatedTicket(mode: 'ticket' | 'invoice') {
+    if (this.createdTicket?.ticket_id) {
+      this.printRequested.emit({ id: this.createdTicket.ticket_id, mode });
+    }
+  }
+
+  onCreateAnother() {
+    this.showPrintOptions = false;
+    this.createdTicket = null;
+    this.resetForm();
+  }
+
+  onManualCustomerToggle() {
+    if (this.manualCustomerMode) {
+      this.ticket.customer_id = 0;
+      this.selectedCustomer = null;
+      this.calculatedValues.taxRate = 7.9;
+      this.calculateAll();
+    }
   }
 
   resetForm() {
@@ -483,7 +479,11 @@ export class TicketEntryComponent implements OnInit {
     this.selectedTrailer = null;
     this.manualTareEnabled = false;
     this.manualTareWeight = 0;
+    this.manualCustomerMode = false;
+    this.manualCustomerName = '';
     this.selectedProjectId = null;
+    this.showPrintOptions = false;
+    this.createdTicket = null;
 
     this.calculatedValues = {
       tare: 0,

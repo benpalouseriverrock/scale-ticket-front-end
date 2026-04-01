@@ -13,7 +13,13 @@
           <button (click)="setView('create')" class="btn btn-link nav-link" [class.active]="currentView === 'create'">➕ Create Ticket</button>
         </li>
         <li class="nav-item">
-          <button (click)="setView('tare')" class="btn btn-link nav-link" [class.active]="currentView === 'tare'">🔧 Update Tare</button>
+          <button (click)="setView('tare')" class="btn btn-link nav-link" [class.active]="currentView === 'tare'">🔧 Fleet</button>
+        </li>
+        <li class="nav-item">
+          <button (click)="setView('admin')" class="btn btn-link nav-link" [class.active]="currentView === 'admin'">⚙️ Admin</button>
+        </li>
+        <li class="nav-item">
+          <button (click)="setView('reports')" class="btn btn-link nav-link" [class.active]="currentView === 'reports'">📊 Reports</button>
         </li>
       </ul>
     </div>
@@ -27,9 +33,12 @@
   </app-ticket-list>
   <app-ticket-entry *ngIf="currentView === 'create'"
     [editTicket]="editingTicket"
-    (editDone)="setView('tickets')">
+    (editDone)="setView('tickets')"
+    (printRequested)="onPrintRequested($event)">
   </app-ticket-entry>
   <app-truck-tare *ngIf="currentView === 'tare'"></app-truck-tare>
+  <app-admin *ngIf="currentView === 'admin'"></app-admin>
+  <app-reports *ngIf="currentView === 'reports'"></app-reports>
 </div>
 
 <app-ticket-print
