@@ -395,6 +395,17 @@ export class TicketEntryComponent implements OnInit {
       this.errorMessage = 'Gross weight must be greater than 0';
       return false;
     }
+    if (this.ticket.is_wsdot_ticket) {
+      const missingFields: string[] = [];
+      if (!this.ticket.dot_code?.trim()) missingFields.push('DOT code');
+      if (!this.ticket.contract_number?.trim()) missingFields.push('contract number');
+      if (!this.ticket.job_number?.trim()) missingFields.push('job number');
+
+      if (missingFields.length > 0) {
+        this.errorMessage = `WSDOT tickets require ${missingFields.join(', ')}`;
+        return false;
+      }
+    }
     return true;
   }
 
